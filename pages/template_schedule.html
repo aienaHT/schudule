@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Основное расписание{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+  <div class="col-md-12">
+    <h2><i class="bi bi-calendar-event"></i> Основное (шаблонное) расписание</h2>
+    <p class="text-muted">Семестр: {{ current_semester }}</p>
+  </div>
+</div>
+
+<div class="row mb-4">
+  <div class="col-md-12">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">Фильтры</h5>
+      </div>
+      <div class="card-body">
+        <form method="get" class="row g-3">
+          <div class="col-md-3">
+            <label class="form-label">День недели:</label>
+            <select name="day" class="form-select" onchange="this.form.submit()">
+              {% for day in days %}
+              <option value="{{ day }}" {% if day==selected_day %}selected{% endif %}>{{ day }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Тип недели:</label>
+            <select name="week_type" class="form-select" onchange="this.form.submit()">
+              {% for wt in week_types %}
+              <option value="{{ wt }}" {% if wt==week_type %}selected{% endif %}>
+                {{ wt == 'all' and 'Все недели' or (wt == 'odd' and 'Нечетные' or 'Четные') }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Семестр:</label>
+            <select name="semester" class="form-select" onchange="this.form.submit()">
+              <option value="1" {% if current_semester==1 %}selected{% endif %}>1 семестр</option>
+              <option value="2" {% if current_semester==2 %}selected{% endif %}>2 семестр</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <div class="d-flex align-items-end h-100">
+              <a href="{{ url_for('export_schedule', type='template', semester=current_semester) }}"
+                class="btn btn-outline-success w-100">
+                <i class="bi bi-download"></i> Экспорт
+              </a>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if schedule_data %}
+{% set courses = {} %}
+{% for group_name in groups %}
+{% set course = group_name[0] %}
+{% if course not in courses %}
+{% set _ = courses.update({course: []}) %}
+{% endif %}
+{% set _ = courses[course].append(group_name) %}
+{% endfor %}
+
+{% for course_num, course_groups in courses.items()|sort %}
+<div class="card mb-4">
+  <div class="card-header">
+    <h5 class="mb-0">{{ course_num }} курс</h5>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover">
+        <thead class="table-light">
+          <tr>
+            <th style="width: 80px;">Пара</th>
+            <th style="width: 120px;">Время</th>
+            {% for group_name in course_groups|sort %}
+            <th>{{ group_name }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% set max_lesson = 12 %}
+          {% if selected_day in ['Понедельник', 'Четверг'] %}
+          {% set max_lesson = 13 %}
+          {% elif selected_day == 'Суббота' %}
+          {% set max_lesson = 8 %}
+          {% endif %}
+
+          {% for lesson_num in range(0, max_lesson) %}
+          {% if selected_day in ['Понедельник', 'Четверг'] or lesson_num != 0 %}
+          <tr>
+            <td class="text-center fw-bold">
+              {{ lesson_num }}
+            </td>
+            <td class="text-center small">
+              {{ lesson_num|lesson_time(selected_day) }}
+              {% if lesson_num|break_time(selected_day) %}
+              <br><span class="text-muted">({{ lesson_num|break_time(selected_day) }})</span>
+              {% endif %}
+            </td>
+            {% for group_name in course_groups|sort %}
+            <td
+              class="{% if schedule_data.get(group_name, {}).get(lesson_num, {}).get('week_type') != 'all' %}template{% endif %}">
+              {% if group_name in schedule_data and lesson_num in schedule_data[group_name] %}
+              <div class="lesson-entry">
+                <div class="fw-bold text-primary">
+                  {{ schedule_data[group_name][lesson_num].subject }}
+                  {% if schedule_data[group_name][lesson_num].week_type != 'all' %}
+                  <span class="badge badge-template badge-sm">
+                    {{ schedule_data[group_name][lesson_num].week_type == 'odd' and 'неч' or 'чет' }}
+                  </span>
+                  {% endif %}
+                </div>
+                <div class="small">{{ schedule_data[group_name][lesson_num].teacher }}</div>
+                <div class="small text-muted">ауд. {{ schedule_data[group_name][lesson_num].room }}</div>
+              </div>
+              {% endif %}
+            </td>
+            {% endfor %}
+          </tr>
+          {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endfor %}
+{% else %}
+<div class="alert alert-info">
+  На {{ selected_day }} занятий не найдено в шаблонном расписании.
+</div>
+{% endif %}
+
+<div class="row mt-3">
+  <div class="col-md-12">
+    <div class="alert alert-secondary">
+      <h6><i class="bi bi-info-circle"></i> Легенда:</h6>
+      <div class="row">
+        <div class="col-md-4">
+          <span class="badge badge-template">неч</span> - только для нечетных недель
+        </div>
+        <div class="col-md-4">
+          <span class="badge badge-template">чет</span> - только для четных недель
+        </div>
+        <div class="col-md-4">
+          * Голубым цветом выделены занятия для определенных недель
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

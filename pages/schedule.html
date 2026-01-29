@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Просмотр расписания</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+
+    .schedule-table {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+      overflow: hidden;
+    }
+
+    .pair-header {
+      background-color: #f8f9fa;
+      font-weight: bold;
+      text-align: center;
+      vertical-align: middle !important;
+    }
+
+    .group-header {
+      background-color: #e9ecef;
+      font-weight: bold;
+      text-align: center;
+      vertical-align: middle !important;
+    }
+
+    .lesson-cell {
+      min-height: 100px;
+      vertical-align: top;
+      border-right: 1px solid #dee2e6;
+      border-bottom: 1px solid #dee2e6;
+    }
+
+    .lesson-entry {
+      padding: 8px;
+      margin: 2px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+    }
+
+    .main-lesson {
+      background-color: #d1ecf1;
+      border-left: 4px solid #17a2b8;
+    }
+
+    .changed-lesson {
+      background-color: #fff3cd;
+      border-left: 4px solid #ffc107;
+    }
+
+    .badge-even {
+      background-color: #28a745;
+    }
+
+    .badge-odd {
+      background-color: #dc3545;
+    }
+
+    .time-cell {
+      font-size: 0.8rem;
+      color: #6c757d;
+      text-align: center;
+    }
+
+    .empty-cell {
+      color: #adb5bd;
+      font-style: italic;
+      text-align: center;
+      padding: 20px;
+    }
+  </style>
+</head>
+
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container">
+      <a class="navbar-brand" href="/">
+        <i class="bi bi-calendar-week"></i> Расписание колледжа
+      </a>
+      <div class="navbar-nav ms-auto">
+        <a class="nav-link" href="/admin"><i class="bi bi-gear"></i> Админ-панель</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    <h2 class="mb-4">
+      <i class="bi bi-calendar-check"></i> Просмотр расписания
+      <small class="text-muted fs-6" id="currentInfo">Загрузка...</small>
+    </h2>
+
+    <!-- Фильтры -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label class="form-label">День недели:</label>
+            <select class="form-select" id="daySelect" onchange="loadSchedule()">
+              <option value="Понедельник">Понедельник</option>
+              <option value="Вторник">Вторник</option>
+              <option value="Среда">Среда</option>
+              <option value="Четверг">Четверг</option>
+              <option value="Пятница">Пятница</option>
+              <option value="Суббота">Суббота</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Тип расписания:</label>
+            <select class="form-select" id="typeSelect" onchange="loadSchedule()">
+              <option value="current">Текущее расписание</option>
+              <option value="main">Основное расписание</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Неделя:</label>
+            <input type="number" class="form-control" id="weekInput" min="1" max="52" value="1"
+              onchange="loadSchedule()">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Семестр:</label>
+            <select class="form-select" id="semesterSelect" onchange="loadSchedule()">
+              <option value="1">1 семестр</option>
+              <option value="2">2 семестр</option>
+            </select>
+          </div>
+          <div class="col-md-2 d-flex align-items-end">
+            <button class="btn btn-primary w-100" onclick="loadSchedule()">
+              <i class="bi bi-arrow-clockwise"></i> Обновить
+            </button>
+          </div>
+        </div>
+
+        <div class="row mt-3">
+          <div class="col-md-12">
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="checkbox" id="showChanged" checked onchange="renderSchedule()">
+              <label class="form-check-label" for="showChanged">Показывать изменения</label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="checkbox" id="showMain" checked onchange="renderSchedule()">
+              <label class="form-check-label" for="showMain">Показывать основное</label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Расписание -->
+    <div class="schedule-table">
+      <div id="scheduleContainer">
+        <div class="text-center p-5">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Загрузка...</span>
+          </div>
+          <p class="mt-3">Загрузка расписания...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Легенда -->
+    <div class="card mt-4">
+      <div class="card-body">
+        <h6><i class="bi bi-info-circle"></i> Легенда:</h6>
+        <div class="row">
+          <div class="col-md-4">
+            <div class="d-flex align-items-center mb-2">
+              <div class="lesson-entry main-lesson me-2" style="width: 20px; height: 20px;"></div>
+              <span>Основное расписание</span>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="d-flex align-items-center mb-2">
+              <div class="lesson-entry changed-lesson me-2" style="width: 20px; height: 20px;"></div>
+              <span>Измененное расписание</span>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="d-flex align-items-center mb-2">
+              <span class="badge badge-even me-2">Ч</span>
+              <span>Четная неделя</span>
+            </div>
+            <div class="d-flex align-items-center">
+              <span class="badge badge-odd me-2">Н</span>
+              <span>Нечетная неделя</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    let currentSchedule = [];
+    let currentDay = 'Понедельник';
+    let currentWeek = 1;
+    let currentSemester = 1;
+    let scheduleType = 'current';
+    let showChanged = true;
+    let showMain = true;
+
+    // Загрузка при старте
+    document.addEventListener('DOMContentLoaded', async function () {
+      await loadSettings();
+      await loadSchedule();
+    });
+
+    // Загрузка настроек
+    async function loadSettings() {
+      try {
+        const response = await fetch('/api/settings/current');
+        if (response.ok) {
+          const settings = await response.json();
+          currentWeek = settings.week || 1;
+          currentSemester = settings.semester || 1;
+
+          document.getElementById('weekInput').value = currentWeek;
+          document.getElementById('semesterSelect').value = currentSemester;
+
+          updateCurrentInfo();
+        }
+      } catch (error) {
+        console.error('Ошибка загрузки настроек:', error);
+      }
+    }
+
+    // Обновление информации в заголовке
+    function updateCurrentInfo() {
+      const weekType = currentWeek % 2 === 0 ? 'четная' : 'нечетная';
+      document.getElementById('currentInfo').innerHTML = ` | Неделя: ${currentWeek} (${weekType}), Семестр: ${currentSemester}`;
+    }
+
+    // Загрузка расписания
+    async function loadSchedule() {
+      currentDay = document.getElementById('daySelect').value;
+      currentWeek = parseInt(document.getElementById('weekInput').value) || 1;
+      currentSemester = parseInt(document.getElementById('semesterSelect').value) || 1;
+      scheduleType = document.getElementById('typeSelect').value;
+      showChanged = document.getElementById('showChanged').checked;
+      showMain = document.getElementById('showMain').checked;
+
+      updateCurrentInfo();
+
+      // Показываем загрузку
+      document.getElementById('scheduleContainer').innerHTML = `
+                <div class="text-center p-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                    <p class="mt-3">Загрузка расписания...</p>
+                </div>
+            `;
+
+      try {
+        let url;
+        if (scheduleType === 'main') {
+          url = `/api/schedule/main?day=${encodeURIComponent(currentDay)}&semester=${currentSemester}`;
+        } else {
+          url = `/api/schedule/current?day=${encodeURIComponent(currentDay)}&week=${currentWeek}&semester=${currentSemester}`;
+        }
+
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error('Ошибка загрузки расписания');
+        }
+
+        currentSchedule = await response.json();
+        renderSchedule();
+
+      } catch (error) {
+        console.error('Ошибка:', error);
+        document.getElementById('scheduleContainer').innerHTML = `
+                    <div class="alert alert-danger m-4">
+                        <i class="bi bi-exclamation-triangle"></i> Ошибка загрузки расписания: ${error.message}
+                    </div>
+                `;
+      }
+    }
+
+    // Отображение расписания
+    function renderSchedule() {
+      showChanged = document.getElementById('showChanged').checked;
+      showMain = document.getElementById('showMain').checked;
+
+      // Фильтруем расписание по настройкам отображения
+      let filteredSchedule = currentSchedule.filter(lesson => {
+        if (scheduleType === 'current') {
+          if (lesson.is_changed && !showChanged) return false;
+          if (!lesson.is_changed && !showMain) return false;
+        }
+        return true;
+      });
+
+      // Группируем по группам
+      const groups = [...new Set(filteredSchedule.map(lesson => lesson.group))].sort();
+
+      // Получаем все пары для текущего дня
+      const allPairs = getAvailablePairsForDay(currentDay);
+
+      if (groups.length === 0 || filteredSchedule.length === 0) {
+        document.getElementById('scheduleContainer').innerHTML = `
+                    <div class="empty-cell">
+                        <i class="bi bi-calendar-x" style="font-size: 3rem;"></i>
+                        <h4 class="mt-3">Нет занятий</h4>
+                        <p class="text-muted">На ${currentDay} нет занятий</p>
+                    </div>
+                `;
+        return;
+      }
+
+      // Создаем таблицу
+      let html = `
+                <div class="table-responsive">
+                    <table class="table table-bordered mb-0">
+                        <thead>
+                            <tr>
+                                <th class="pair-header" style="width: 100px;">Пара</th>
+                                <th class="pair-header" style="width: 120px;">Время</th>
+            `;
+
+      // Заголовки групп
+      groups.forEach(group => {
+        html += `<th class="group-header">${group}</th>`;
+      });
+
+      html += `</tr></thead><tbody>`;
+
+      // Для каждой пары
+      allPairs.forEach(pairNum => {
+        const pairTime = getPairTime(currentDay, pairNum);
+
+        html += `
+                    <tr>
+                        <td class="pair-header text-center">
+                            <strong>${pairNum}</strong>
+                        </td>
+                        <td class="time-cell">
+                            ${pairTime}
+                        </td>
+                `;
+
+        // Для каждой группы
+        groups.forEach(group => {
+          // Находим занятия для этой группы и этой пары
+          const lessons = filteredSchedule.filter(lesson =>
+            lesson.group === group && lesson.pair === pairNum
+          );
+
+          html += `<td class="lesson-cell p-2">`;
+
+          if (lessons.length === 0) {
+            html += `<div class="text-center text-muted py-3">-</div>`;
+          } else {
+            lessons.forEach(lesson => {
+              const lessonClass = lesson.is_changed ? 'changed-lesson' : 'main-lesson';
+              const weekBadge = scheduleType === 'main' && lesson.week_parity !== 'both' ?
+                `<span class="badge ${lesson.week_parity === 'even' ? 'badge-even' : 'badge-odd'}">${lesson.week_parity === 'even' ? 'Ч' : 'Н'}</span>` : '';
+
+              html += `
+                                <div class="lesson-entry ${lessonClass}">
+                                    ${weekBadge}
+                                    <div class="fw-bold">${lesson.subject}</div>
+                                    <div class="small">${lesson.teacher}</div>
+                                    <div class="small text-muted">ауд. ${lesson.room}</div>
+                                    <div class="small">урок ${lesson.lesson_number}</div>
+                                    ${lesson.is_changed ? '<span class="badge bg-warning badge-sm">изм</span>' : ''}
+                                </div>
+                            `;
+            });
+          }
+
+          html += `</td>`;
+        });
+
+        html += `</tr>`;
+      });
+
+      html += `</tbody></table></div>`;
+
+      document.getElementById('scheduleContainer').innerHTML = html;
+    }
+
+    // Вспомогательные функции для работы с парами
+    function getAvailablePairsForDay(day) {
+      if (day === "Суббота") {
+        return [1, 2, 3, 4];
+      } else if (day in ["Понедельник", "Четверг"]) {
+        return [0, 1, 2, 3, 4, 5, 6];
+      } else {
+        return [1, 2, 3, 4, 5, 6];
+      }
+    }
+
+    function getPairTime(day, pair) {
+      if (pair === 0) return "8:30-9:10";
+      if (pair === 1) {
+        if (day === "Суббота") return "8:00-9:25";
+        if (day in ["Понедельник", "Четверг"]) return "9:15-10:40";
+        return "8:30-9:55";
+      }
+      if (pair === 2) {
+        if (day === "Суббота") return "9:30-10:55";
+        if (day in ["Понедельник", "Четверг"]) return "11:20-12:45";
+        return "10:35-12:00";
+      }
+      if (pair === 3) {
+        if (day === "Суббота") return "11:00-12:25";
+        if (day in ["Понедельник", "Четверг"]) return "13:25-14:50";
+        return "12:40-14:05";
+      }
+      if (pair === 4) {
+        if (day === "Суббота") return "12:30-13:55";
+        if (day in ["Понедельник", "Четверг"]) return "15:00-16:25";
+        return "14:15-15:40";
+      }
+      if (pair === 5) {
+        if (day in ["Понедельник", "Четверг"]) return "16:30-17:55";
+        return "15:45-17:10";
+      }
+      if (pair === 6) {
+        if (day in ["Понедельник", "Четверг"]) return "18:00-19:25";
+        return "17:15-18:40";
+      }
+      return "";
+    }
+
+    // Обработчики чекбоксов
+    document.getElementById('showChanged').addEventListener('change', renderSchedule);
+    document.getElementById('showMain').addEventListener('change', renderSchedule);
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,1499 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Управление группами</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+
+    .navbar-custom {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .group-card {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+      margin-bottom: 20px;
+      transition: all 0.3s;
+    }
+
+    .group-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .modal-lg-custom {
+      max-width: 900px;
+    }
+
+    .hours-input {
+      width: 80px;
+    }
+
+    .practice-badge {
+      background-color: #17a2b8;
+    }
+
+    .autofill-btn {
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      color: white;
+      border: none;
+    }
+
+    .conflict-badge {
+      background-color: #dc3545;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.7;
+      }
+
+      100% {
+        opacity: 1;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Навигация -->
+  <nav class="navbar navbar-expand-lg navbar-dark navbar-custom">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/admin">
+        <i class="bi bi-arrow-left"></i> Управление группами
+      </a>
+      <div class="navbar-nav ms-auto">
+        <span class="navbar-text me-3" id="userInfo">
+          <i class="bi bi-person-circle"></i> Загрузка...
+        </span>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container-fluid py-3">
+    <!-- Заголовок и кнопки -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h2><i class="bi bi-people"></i> Управление группами и предметами</h2>
+      <div>
+        <button class="btn btn-primary" onclick="showAddGroupModal()">
+          <i class="bi bi-plus-circle"></i> Добавить группу
+        </button>
+        <button class="btn autofill-btn ms-2" onclick="showAutofillModal()">
+          <i class="bi bi-magic"></i> Автозаполнение
+        </button>
+        <button class="btn btn-warning ms-2" onclick="checkConflicts()">
+          <i class="bi bi-exclamation-triangle"></i> Проверить конфликты
+        </button>
+      </div>
+    </div>
+
+    <!-- Статистика автозаполнения -->
+    <div class="card mb-4" id="autofillStats" style="display: none;">
+      <div class="card-header bg-info text-white">
+        <h5 class="mb-0"><i class="bi bi-bar-chart"></i> Статистика автозаполнения</h5>
+      </div>
+      <div class="card-body">
+        <div class="row" id="autofillStatsContent">
+          <!-- Статистика будет загружена здесь -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Список групп -->
+    <div id="groupsContainer">
+      <div class="text-center p-5">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Загрузка...</span>
+        </div>
+        <p class="mt-3">Загрузка списка групп...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно добавления группы -->
+  <div class="modal fade" id="addGroupModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Добавить новую группу</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="addGroupForm">
+            <div class="mb-3">
+              <label class="form-label">Название группы *</label>
+              <input type="text" class="form-control" id="groupName" required placeholder="Например: 1А, 2Б и т.д.">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Курс *</label>
+              <select class="form-select" id="groupCourse" required>
+                <option value="">Выберите курс</option>
+                <option value="1">1 курс</option>
+                <option value="2">2 курс</option>
+                <option value="3">3 курс</option>
+                <option value="4">4 курс</option>
+              </select>
+            </div>
+          </form>
+          <div id="addGroupMessage" class="mt-3"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="button" class="btn btn-primary" onclick="addGroup()">Добавить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно управления предметами группы -->
+  <div class="modal fade" id="manageSubjectsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg-custom">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="manageSubjectsTitle">Управление предметами группы</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="currentGroupId">
+
+          <!-- Информация о группе -->
+          <div class="card mb-3">
+            <div class="card-body">
+              <div class="row">
+                <div class="col-md-6">
+                  <h6 id="groupInfo">Группа: </h6>
+                </div>
+                <div class="col-md-6 text-end">
+                  <button class="btn btn-sm btn-outline-info" onclick="managePractice()">
+                    <i class="bi bi-calendar-week"></i> Управление практикой
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Форма добавления предмета -->
+          <div class="card mb-4">
+            <div class="card-body">
+              <h6>Добавить предмет группе</h6>
+              <form id="addSubjectForm" class="row g-3">
+                <div class="col-md-4">
+                  <select class="form-select" id="subjectSelect" required>
+                    <option value="">Выберите предмет</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <select class="form-select" id="teacherSelect">
+                    <option value="">Выберите преподавателя</option>
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <input type="number" class="form-control" id="hoursPerWeek" placeholder="Час/нед" min="0" max="40"
+                    value="0" required>
+                </div>
+                <div class="col-md-3">
+                  <button type="submit" class="btn btn-success w-100">
+                    <i class="bi bi-plus"></i> Добавить
+                  </button>
+                </div>
+                <div class="col-md-6 mt-2">
+                  <label class="form-label small">Часы за 1 семестр:</label>
+                  <input type="number" class="form-control" id="totalHoursSemester1" placeholder="Всего часов" min="0">
+                </div>
+                <div class="col-md-6 mt-2">
+                  <label class="form-label small">Часы за 2 семестр:</label>
+                  <input type="number" class="form-control" id="totalHoursSemester2" placeholder="Всего часов" min="0">
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- Список предметов группы -->
+          <div class="card">
+            <div class="card-body">
+              <h6>Предметы группы
+                <span id="totalGroupHoursBadge" class="badge bg-success ms-2">0 ч/нед</span>
+                <span id="practiceBadge" class="badge practice-badge ms-2" style="display: none;">
+                  <i class="bi bi-calendar-week"></i> Практика
+                </span>
+              </h6>
+              <div id="groupSubjectsList">
+                <div class="text-center p-3">
+                  <div class="spinner-border spinner-border-sm" role="status"></div>
+                  <span class="ms-2">Загрузка предметов...</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="manageSubjectsMessage" class="mt-3"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно управления практикой -->
+  <div class="modal fade" id="practiceModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Управление практикой</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="practiceGroupId">
+
+          <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> Практика назначается для 2-4 курсов.
+            Она ставится на весь день в указанный день недели КАЖДУЮ неделю.
+          </div>
+
+          <form id="practiceForm">
+            <div class="mb-3">
+              <label class="form-label">День недели для практики *</label>
+              <select class="form-select" id="practiceDay" required>
+                <option value="">Выберите день</option>
+                <option value="Понедельник">Понедельник</option>
+                <option value="Вторник">Вторник</option>
+                <option value="Среда">Среда</option>
+                <option value="Четверг">Четверг</option>
+                <option value="Пятница">Пятница</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Предмет практики *</label>
+              <select class="form-select" id="practiceSubject" required>
+                <option value="">Выберите предмет</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Преподаватель</label>
+              <select class="form-select" id="practiceTeacher">
+                <option value="">Выберите преподавателя</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Аудитория</label>
+              <select class="form-select" id="practiceRoom">
+                <option value="">Выберите аудиторию</option>
+              </select>
+            </div>
+          </form>
+          <div id="practiceMessage" class="mt-3"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="button" class="btn btn-danger" onclick="deletePractice()" id="deletePracticeBtn"
+            style="display: none;">
+            Удалить практику
+          </button>
+          <button type="button" class="btn btn-primary" onclick="savePractice()">Сохранить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно автозаполнения -->
+  <div class="modal fade" id="autofillModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-magic"></i> Автоматическое заполнение расписания</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i>
+            <strong>Внимание:</strong> Автозаполнение создаст расписание на основе данных о нагрузке групп.
+            Убедитесь, что все группы имеют назначенные предметы и часы.
+          </div>
+
+          <form id="autofillForm">
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label">Тип расписания *</label>
+                <select class="form-select" id="fillType" required>
+                  <option value="both">Текущее и основное</option>
+                  <option value="current">Только текущее</option>
+                  <option value="main">Только основное</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Неделя</label>
+                <input type="number" class="form-control" id="fillWeek" min="1" max="52" value="1">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Семестр</label>
+                <select class="form-select" id="fillSemester">
+                  <option value="1">1 семестр</option>
+                  <option value="2">2 семестр</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="alert alert-info mt-3">
+              <h6><i class="bi bi-info-circle"></i> Особенности автозаполнения:</h6>
+              <ul class="mb-0">
+                <li>Не будет дырок в расписании (если есть 1 и 2 пара, то и 3 будет)</li>
+                <li>Один преподаватель не ведет одновременно в 2х группах</li>
+                <li>Практика ставится КАЖДУЮ неделю на весь день для 2-4 курсов</li>
+                <li>На 0 урок (понедельник, четверг) только "Разговоры о важном"</li>
+                <li>Совмещенные занятия выделяются красным</li>
+                <li>Максимум 4 пары в день (пн-пт), 2 пары (сб-вс)</li>
+              </ul>
+            </div>
+          </form>
+
+          <div id="autofillProgress" class="mt-3" style="display: none;">
+            <div class="progress">
+              <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%">
+              </div>
+            </div>
+            <div class="text-center mt-2">
+              <span id="progressText">Подготовка к автозаполнению...</span>
+            </div>
+          </div>
+
+          <div id="autofillResult" class="mt-3"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="button" class="btn btn-primary" onclick="startAutofill()" id="startAutofillBtn">
+            <i class="bi bi-magic"></i> Начать автозаполнение
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно конфликтов -->
+  <div class="modal fade" id="conflictsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-exclamation-triangle"></i> Конфликты в расписании</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div id="conflictsContent">
+            <div class="text-center p-5">
+              <div class="spinner-border text-warning" role="status"></div>
+              <p class="mt-3">Проверка конфликтов...</p>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Глобальные переменные
+    let allGroups = [];
+    let allSubjects = [];
+    let allTeachers = [];
+    let allRooms = [];
+    let currentGroupSubjects = [];
+    let currentGroupPractice = null;
+
+    // Загрузка при старте
+    document.addEventListener('DOMContentLoaded', async function () {
+      await checkAuth();
+      await loadUserInfo();
+      await loadInitialData();
+      await loadGroups();
+      await loadAutofillStats();
+    });
+
+    // Проверка авторизации
+    async function checkAuth() {
+      try {
+        const response = await fetch('/api/user_info');
+        const data = await response.json();
+
+        if (!data.authenticated || data.role !== 'admin') {
+          window.location.href = '/login';
+          return false;
+        }
+        return true;
+      } catch (error) {
+        window.location.href = '/login';
+        return false;
+      }
+    }
+
+    // Загрузка информации о пользователе
+    async function loadUserInfo() {
+      try {
+        const response = await fetch('/api/user_info');
+        const data = await response.json();
+
+        if (data.authenticated) {
+          document.getElementById('userInfo').innerHTML = `
+            <i class="bi bi-person-circle"></i> ${data.username}
+          `;
+        }
+      } catch (error) {
+        console.error('Ошибка загрузки информации о пользователе:', error);
+      }
+    }
+
+    // Загрузка начальных данных
+    async function loadInitialData() {
+      try {
+        // Загружаем предметы
+        const subjectsResponse = await fetch('/api/data/subjects');
+        if (subjectsResponse.ok) {
+          allSubjects = await subjectsResponse.json();
+        }
+
+        // Загружаем преподаватели
+        const teachersResponse = await fetch('/api/data/teachers');
+        if (teachersResponse.ok) {
+          allTeachers = await teachersResponse.json();
+        }
+
+        // Загружаем аудитории
+        const roomsResponse = await fetch('/api/data/rooms');
+        if (roomsResponse.ok) {
+          allRooms = await roomsResponse.json();
+        }
+
+      } catch (error) {
+        console.error('Ошибка загрузки данных:', error);
+        showMessage('groupsContainer', 'Ошибка загрузки данных', 'danger');
+      }
+    }
+
+    // Загрузка списка групп
+    async function loadGroups() {
+      try {
+        const response = await fetch('/api/data/groups');
+        if (!response.ok) {
+          throw new Error('Ошибка загрузки групп');
+        }
+
+        allGroups = await response.json();
+        renderGroups();
+
+      } catch (error) {
+        console.error('Ошибка:', error);
+        document.getElementById('groupsContainer').innerHTML = `
+          <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle"></i> Ошибка загрузки групп: ${error.message}
+          </div>
+        `;
+      }
+    }
+
+    // Отображение групп
+    function renderGroups() {
+      if (allGroups.length === 0) {
+        document.getElementById('groupsContainer').innerHTML = `
+          <div class="text-center p-5">
+            <i class="bi bi-people" style="font-size: 3rem; color: #6c757d;"></i>
+            <h4 class="mt-3">Нет групп</h4>
+            <p class="text-muted">Добавьте первую группу, нажав на кнопку "Добавить группу"</p>
+            <button class="btn btn-primary mt-3" onclick="showAddGroupModal()">
+              <i class="bi bi-plus-circle"></i> Добавить первую группу
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      // Группируем по курсам
+      const groupsByCourse = {};
+      allGroups.forEach(group => {
+        if (!groupsByCourse[group.course]) {
+          groupsByCourse[group.course] = [];
+        }
+        groupsByCourse[group.course].push(group);
+      });
+
+      let html = '';
+
+      // Для каждого курса
+      Object.keys(groupsByCourse).sort().forEach(course => {
+        html += `
+          <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+              <h5 class="mb-0">${course} курс</h5>
+            </div>
+            <div class="card-body">
+              <div class="row">
+        `;
+
+        groupsByCourse[course].forEach(group => {
+          html += `
+            <div class="col-md-6 col-lg-4 mb-3">
+              <div class="group-card">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                  <div>
+                    <h5 class="mb-0">${group.name}</h5>
+                    <small class="text-muted">${group.course} курс</small>
+                  </div>
+                  <div class="btn-group">
+                    <button class="btn btn-sm btn-outline-primary" onclick="manageGroupSubjects(${group.id})" title="Управление предметами">
+                      <i class="bi bi-book"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-info" onclick="managePracticeForGroup(${group.id})" title="Практика">
+                      <i class="bi bi-calendar-week"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteGroup(${group.id})" title="Удалить группу">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </div>
+                </div>
+                
+                <div class="mb-2">
+                  <small class="text-muted">ID: ${group.id}</small>
+                </div>
+                
+                <div class="d-grid">
+                  <button class="btn btn-outline-success" onclick="manageGroupSubjects(${group.id})">
+                    <i class="bi bi-gear"></i> Управление предметами и часами
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        });
+
+        html += `
+              </div>
+            </div>
+          </div>
+        `;
+      });
+
+      document.getElementById('groupsContainer').innerHTML = html;
+    }
+
+    // Показать модальное окно добавления группы
+    function showAddGroupModal() {
+      document.getElementById('addGroupForm').reset();
+      document.getElementById('addGroupMessage').innerHTML = '';
+
+      const modal = new bootstrap.Modal(document.getElementById('addGroupModal'));
+      modal.show();
+    }
+
+    // Добавить группу
+    async function addGroup() {
+      const name = document.getElementById('groupName').value.trim();
+      const course = document.getElementById('groupCourse').value;
+
+      if (!name || !course) {
+        showMessage('addGroupMessage', 'Заполните все поля', 'danger');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/data/groups', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: name,
+            course: parseInt(course)
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success || result.id) {
+          showMessage('addGroupMessage', 'Группа успешно добавлена', 'success');
+
+          setTimeout(() => {
+            bootstrap.Modal.getInstance(document.getElementById('addGroupModal')).hide();
+            loadGroups();
+          }, 1500);
+        } else {
+          showMessage('addGroupMessage', result.message || 'Ошибка добавления группы', 'danger');
+        }
+
+      } catch (error) {
+        showMessage('addGroupMessage', `Ошибка сети: ${error.message}`, 'danger');
+      }
+    }
+
+    // Удалить группу
+    async function deleteGroup(groupId) {
+      if (!confirm('Вы уверены, что хотите удалить эту группу? Все связанные данные будут удалены.')) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/group/delete/${groupId}`, {
+          method: 'DELETE'
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          alert('Группа удалена');
+          loadGroups();
+        } else {
+          alert('Ошибка: ' + result.message);
+        }
+      } catch (error) {
+        alert('Ошибка сети: ' + error.message);
+      }
+    }
+
+    // Управление предметами группы
+    async function manageGroupSubjects(groupId) {
+      const group = allGroups.find(g => g.id === groupId);
+      if (!group) return;
+
+      document.getElementById('currentGroupId').value = groupId;
+      document.getElementById('manageSubjectsTitle').textContent = `Управление предметами группы ${group.name}`;
+      document.getElementById('groupInfo').textContent = `Группа: ${group.name} (${group.course} курс)`;
+      document.getElementById('manageSubjectsMessage').innerHTML = '';
+
+      // Заполняем выпадающие списки
+      updateSubjectSelect();
+      updateTeacherSelect();
+
+      // Загружаем предметы группы и практику
+      await loadGroupSubjects(groupId);
+      await loadGroupPractice(groupId);
+
+      // Показываем модальное окно
+      const modal = new bootstrap.Modal(document.getElementById('manageSubjectsModal'));
+      modal.show();
+    }
+
+    // Обновление выпадающего списка предметов
+    function updateSubjectSelect() {
+      const select = document.getElementById('subjectSelect');
+      const practiceSelect = document.getElementById('practiceSubject');
+
+      select.innerHTML = '<option value="">Выберите предмет</option>';
+      practiceSelect.innerHTML = '<option value="">Выберите предмет</option>';
+
+      allSubjects.sort((a, b) => a.name.localeCompare(b.name)).forEach(subject => {
+        const option = document.createElement('option');
+        option.value = subject.id;
+        option.textContent = subject.name;
+        select.appendChild(option);
+
+        const option2 = document.createElement('option');
+        option2.value = subject.id;
+        option2.textContent = subject.name;
+        practiceSelect.appendChild(option2);
+      });
+    }
+
+    // Обновление выпадающего списка преподавателей
+    function updateTeacherSelect() {
+      const select = document.getElementById('teacherSelect');
+      const practiceSelect = document.getElementById('practiceTeacher');
+
+      select.innerHTML = '<option value="">Выберите преподавателя</option>';
+      practiceSelect.innerHTML = '<option value="">Выберите преподавателя</option>';
+
+      allTeachers.sort((a, b) => a.name.localeCompare(b.name)).forEach(teacher => {
+        const option = document.createElement('option');
+        option.value = teacher.id;
+        option.textContent = teacher.name;
+        select.appendChild(option);
+
+        const option2 = document.createElement('option');
+        option2.value = teacher.id;
+        option2.textContent = teacher.name;
+        practiceSelect.appendChild(option2);
+      });
+    }
+
+    // Обновление выпадающего списка аудиторий
+    function updateRoomSelect() {
+      const select = document.getElementById('practiceRoom');
+      select.innerHTML = '<option value="">Выберите аудиторию</option>';
+
+      allRooms.sort((a, b) => a.name.localeCompare(b.name)).forEach(room => {
+        const option = document.createElement('option');
+        option.value = room.id;
+        option.textContent = room.name;
+        select.appendChild(option);
+      });
+    }
+
+    // Загрузка предметов группы
+    async function loadGroupSubjects(groupId) {
+      try {
+        const response = await fetch(`/api/group/${groupId}/subjects`);
+        if (!response.ok) {
+          throw new Error('Ошибка загрузки предметов группы');
+        }
+
+        const data = await response.json();
+        if (!data.success) {
+          throw new Error(data.message);
+        }
+
+        currentGroupSubjects = data.subjects || [];
+        currentGroupPractice = data.practice;
+
+        renderGroupSubjects();
+        updateTotalHoursBadge();
+        updatePracticeBadge();
+
+      } catch (error) {
+        console.error('Ошибка загрузки предметов группы:', error);
+        document.getElementById('groupSubjectsList').innerHTML = `
+          <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle"></i> Ошибка загрузки предметов: ${error.message}
+          </div>
+        `;
+      }
+    }
+
+    // Загрузка практики группы
+    async function loadGroupPractice(groupId) {
+      try {
+        const response = await fetch(`/api/group/${groupId}/subjects`);
+        if (response.ok) {
+          const data = await response.json();
+          currentGroupPractice = data.practice;
+          updatePracticeBadge();
+        }
+      } catch (error) {
+        console.error('Ошибка загрузки практики:', error);
+      }
+    }
+
+    // Обновление бейджа с общим количеством часов
+    function updateTotalHoursBadge() {
+      const totalHours = currentGroupSubjects.reduce((sum, subject) => sum + (subject.hours_per_week || 0), 0);
+      document.getElementById('totalGroupHoursBadge').textContent = `${totalHours} ч/нед`;
+    }
+
+    // Обновление бейджа практики
+    function updatePracticeBadge() {
+      const practiceBadge = document.getElementById('practiceBadge');
+      if (currentGroupPractice && currentGroupPractice.has_practice) {
+        practiceBadge.style.display = 'inline-block';
+        practiceBadge.title = `Практика: ${currentGroupPractice.day}, ${currentGroupPractice.subject_name}`;
+      } else {
+        practiceBadge.style.display = 'none';
+      }
+    }
+
+    // Отображение предметов группы
+    function renderGroupSubjects() {
+      const container = document.getElementById('groupSubjectsList');
+
+      if (!currentGroupSubjects || currentGroupSubjects.length === 0) {
+        container.innerHTML = `
+          <div class="text-center p-4">
+            <i class="bi bi-book" style="font-size: 2rem; color: #6c757d;"></i>
+            <p class="mt-2 text-muted">У группы нет предметов</p>
+            <small>Добавьте предметы через форму выше</small>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '<div class="table-responsive">';
+      html += `
+        <table class="table table-hover">
+          <thead>
+            <tr>
+              <th>Предмет</th>
+              <th>Преподаватель</th>
+              <th>Час/нед</th>
+              <th>Часы 1 сем</th>
+              <th>Часы 2 сем</th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      currentGroupSubjects.forEach(subject => {
+        const teacher = allTeachers.find(t => t.id === subject.teacher_id);
+        const subjectName = allSubjects.find(s => s.id === subject.subject_id)?.name || 'Неизвестно';
+
+        html += `
+          <tr>
+            <td>
+              <strong>${subjectName}</strong>
+            </td>
+            <td>${teacher ? teacher.name : 'Не назначен'}</td>
+            <td>
+              <input type="number" 
+                     class="form-control form-control-sm hours-input" 
+                     value="${subject.hours_per_week || 0}"
+                     min="0"
+                     max="40"
+                     onchange="updateSubjectHours(${subject.id}, this.value)">
+            </td>
+            <td>
+              <input type="number" 
+                     class="form-control form-control-sm" 
+                     value="${subject.total_hours_semester1 || 0}"
+                     min="0"
+                     style="width: 80px;"
+                     onchange="updateSemesterHours(${subject.id}, 'semester1', this.value)">
+            </td>
+            <td>
+              <input type="number" 
+                     class="form-control form-control-sm" 
+                     value="${subject.total_hours_semester2 || 0}"
+                     min="0"
+                     style="width: 80px;"
+                     onchange="updateSemesterHours(${subject.id}, 'semester2', this.value)">
+            </td>
+            <td>
+              <button class="btn btn-sm btn-outline-danger" onclick="removeGroupSubject(${subject.id})" title="Удалить">
+                <i class="bi bi-trash"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+
+      html += `
+          </tbody>
+        </table>
+      </div>`;
+
+      container.innerHTML = html;
+    }
+
+    // Обновление часов в неделю для предмета
+    async function updateSubjectHours(subjectGroupId, hours) {
+      try {
+        const response = await fetch(`/api/group/subject/${subjectGroupId}/hours`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ hours_per_week: parseInt(hours) })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          // Обновляем локальные данные
+          const subjectIndex = currentGroupSubjects.findIndex(s => s.id === subjectGroupId);
+          if (subjectIndex !== -1) {
+            currentGroupSubjects[subjectIndex].hours_per_week = parseInt(hours);
+          }
+          updateTotalHoursBadge();
+        } else {
+          alert('Ошибка обновления часов: ' + result.message);
+        }
+      } catch (error) {
+        alert('Ошибка сети: ' + error.message);
+      }
+    }
+
+    // Обновление часов за семестр
+    async function updateSemesterHours(subjectGroupId, semester, hours) {
+      const field = semester === 'semester1' ? 'total_hours_semester1' : 'total_hours_semester2';
+
+      try {
+        const response = await fetch(`/api/group/subject/${subjectGroupId}/semester-hours`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            [field]: parseInt(hours) || 0
+          })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          // Обновляем локальные данные
+          const subjectIndex = currentGroupSubjects.findIndex(s => s.id === subjectGroupId);
+          if (subjectIndex !== -1) {
+            currentGroupSubjects[subjectIndex][field] = parseInt(hours) || 0;
+          }
+        } else {
+          alert('Ошибка обновления часов: ' + result.message);
+        }
+      } catch (error) {
+        alert('Ошибка сети: ' + error.message);
+      }
+    }
+
+    // Добавление предмета группе
+    document.getElementById('addSubjectForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+
+      const groupId = document.getElementById('currentGroupId').value;
+      const subjectId = document.getElementById('subjectSelect').value;
+      const teacherId = document.getElementById('teacherSelect').value || null;
+      const hoursPerWeek = document.getElementById('hoursPerWeek').value;
+      const hoursSem1 = document.getElementById('totalHoursSemester1').value || 0;
+      const hoursSem2 = document.getElementById('totalHoursSemester2').value || 0;
+
+      if (!subjectId) {
+        showMessage('manageSubjectsMessage', 'Выберите предмет', 'warning');
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/group/${groupId}/add-subject`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            subject_id: parseInt(subjectId),
+            teacher_id: teacherId ? parseInt(teacherId) : null,
+            hours_per_week: parseInt(hoursPerWeek),
+            total_hours_semester1: parseInt(hoursSem1),
+            total_hours_semester2: parseInt(hoursSem2)
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showMessage('manageSubjectsMessage', 'Предмет успешно добавлен', 'success');
+
+          // Сбрасываем форму
+          document.getElementById('addSubjectForm').reset();
+
+          // Перезагружаем предметы группы
+          await loadGroupSubjects(groupId);
+
+        } else {
+          showMessage('manageSubjectsMessage', result.message || 'Ошибка добавления предмета', 'danger');
+        }
+
+      } catch (error) {
+        showMessage('manageSubjectsMessage', `Ошибка сети: ${error.message}`, 'danger');
+      }
+    });
+
+    // Удаление предмета из группы
+    async function removeGroupSubject(subjectGroupId) {
+      if (!confirm('Вы уверены, что хотите удалить этот предмет из группы?')) {
+        return;
+      }
+
+      try {
+        // ИСПРАВЛЕНО: добавлен /delete/ в URL
+        const response = await fetch(`/api/group/subject/delete/${subjectGroupId}`, {
+          method: 'DELETE'
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          // Удаляем из локальных данных
+          currentGroupSubjects = currentGroupSubjects.filter(s => s.id !== subjectGroupId);
+          renderGroupSubjects();
+          updateTotalHoursBadge();
+        } else {
+          alert('Ошибка удаления: ' + result.message);
+        }
+
+      } catch (error) {
+        alert('Ошибка сети: ' + error.message);
+      }
+    }
+
+    // Управление практикой
+    async function managePractice() {
+      const groupId = document.getElementById('currentGroupId').value;
+      const group = allGroups.find(g => g.id == groupId);
+
+      if (group.course < 2) {
+        showMessage('manageSubjectsMessage', 'Практика назначается только для 2-4 курсов', 'warning');
+        return;
+      }
+
+      await managePracticeForGroup(groupId);
+    }
+
+    // Управление практикой для группы
+    async function managePracticeForGroup(groupId) {
+      const group = allGroups.find(g => g.id == groupId);
+
+      if (group.course < 2) {
+        alert('Практика назначается только для 2-4 курсов');
+        return;
+      }
+
+      document.getElementById('practiceGroupId').value = groupId;
+
+      // Обновляем списки
+      updateSubjectSelect();
+      updateTeacherSelect();
+      updateRoomSelect();
+
+      // Загружаем текущую практику
+      await loadPracticeData(groupId);
+
+      const modal = new bootstrap.Modal(document.getElementById('practiceModal'));
+      modal.show();
+    }
+
+    // Загрузка данных о практике
+    async function loadPracticeData(groupId) {
+      try {
+        const response = await fetch(`/api/group/${groupId}/practice`);
+        if (!response.ok) {
+          document.getElementById('deletePracticeBtn').style.display = 'none';
+          document.getElementById('practiceForm').reset();
+          return;
+        }
+
+        const data = await response.json();
+
+        if (data.success && data.practice) {
+          const practice = data.practice;
+
+          document.getElementById('practiceDay').value = practice.day || '';
+          document.getElementById('practiceSubject').value = practice.subject_id || '';
+          document.getElementById('practiceTeacher').value = practice.teacher_id || '';
+          document.getElementById('practiceRoom').value = practice.room_id || '';
+
+          document.getElementById('deletePracticeBtn').style.display = 'inline-block';
+        } else {
+          document.getElementById('deletePracticeBtn').style.display = 'none';
+          document.getElementById('practiceForm').reset();
+        }
+
+      } catch (error) {
+        console.error('Ошибка загрузки практики:', error);
+        document.getElementById('deletePracticeBtn').style.display = 'none';
+      }
+    }
+
+    // Сохранение практики
+    async function savePractice() {
+      const groupId = document.getElementById('practiceGroupId').value;
+      const day = document.getElementById('practiceDay').value;
+      const subjectId = document.getElementById('practiceSubject').value;
+      const teacherId = document.getElementById('practiceTeacher').value || null;
+      const roomId = document.getElementById('practiceRoom').value || null;
+
+      if (!day || !subjectId) {
+        showMessage('practiceMessage', 'Заполните обязательные поля: день недели и предмет', 'warning');
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/group/practice`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            group_id: groupId,
+            day: day,
+            subject_id: parseInt(subjectId),
+            teacher_id: teacherId ? parseInt(teacherId) : null,
+            room_id: roomId ? parseInt(roomId) : null
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showMessage('practiceMessage', 'Практика успешно сохранена', 'success');
+
+          // Обновляем данные
+          currentGroupPractice = {
+            has_practice: true,
+            day: day,
+            subject_name: allSubjects.find(s => s.id == subjectId)?.name || 'Неизвестно'
+          };
+
+          updatePracticeBadge();
+
+          // Закрываем модальное окно через 1.5 секунды
+          setTimeout(() => {
+            bootstrap.Modal.getInstance(document.getElementById('practiceModal')).hide();
+          }, 1500);
+
+        } else {
+          showMessage('practiceMessage', result.message || 'Ошибка сохранения практики', 'danger');
+        }
+
+      } catch (error) {
+        showMessage('practiceMessage', `Ошибка сети: ${error.message}`, 'danger');
+      }
+    }
+
+    // Удаление практики
+    async function deletePractice() {
+      if (!confirm('Вы уверены, что хотите удалить практику для этой группы?')) {
+        return;
+      }
+
+      const groupId = document.getElementById('practiceGroupId').value;
+
+      try {
+        const response = await fetch(`/api/group/practice/delete/${groupId}`, {
+          method: 'DELETE'
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showMessage('practiceMessage', 'Практика удалена', 'success');
+
+          // Обновляем данные
+          currentGroupPractice = null;
+          updatePracticeBadge();
+
+          // Сбрасываем форму и скрываем кнопку удаления
+          document.getElementById('practiceForm').reset();
+          document.getElementById('deletePracticeBtn').style.display = 'none';
+
+          // Закрываем модальное окно через 1.5 секунды
+          setTimeout(() => {
+            bootstrap.Modal.getInstance(document.getElementById('practiceModal')).hide();
+          }, 1500);
+
+        } else {
+          showMessage('practiceMessage', result.message || 'Ошибка удаления практики', 'danger');
+        }
+
+      } catch (error) {
+        showMessage('practiceMessage', `Ошибка сети: ${error.message}`, 'danger');
+      }
+    }
+
+    // Показать модальное окно автозаполнения
+    function showAutofillModal() {
+      document.getElementById('autofillForm').reset();
+      document.getElementById('autofillResult').innerHTML = '';
+      document.getElementById('autofillProgress').style.display = 'none';
+      document.getElementById('startAutofillBtn').disabled = false;
+
+      const modal = new bootstrap.Modal(document.getElementById('autofillModal'));
+      modal.show();
+    }
+
+    // Загрузка статистики автозаполнения
+    async function loadAutofillStats() {
+      try {
+        const response = await fetch('/api/schedule/autofill-stats');
+        if (!response.ok) return;
+
+        const data = await response.json();
+
+        if (data.success && (data.stats?.total_groups > 0 || data.stats?.total_hours > 0)) {
+          document.getElementById('autofillStats').style.display = 'block';
+
+          let html = '';
+
+          if (data.stats.total_groups > 0) {
+            html += `
+              <div class="col-md-4">
+                <div class="text-center">
+                  <h2 class="text-info">${data.stats.total_groups}</h2>
+                  <p class="text-muted mb-0">Всего групп</p>
+                </div>
+              </div>
+            `;
+          }
+
+          if (data.stats.total_hours > 0) {
+            html += `
+              <div class="col-md-4">
+                <div class="text-center">
+                  <h2 class="text-success">${data.stats.total_hours}</h2>
+                  <p class="text-muted mb-0">Всего часов/нед</p>
+                </div>
+              </div>
+            `;
+          }
+
+          if (data.stats.total_conflicts > 0) {
+            html += `
+              <div class="col-md-4">
+                <div class="text-center">
+                  <h2 class="text-danger">${data.stats.total_conflicts}</h2>
+                  <p class="text-muted mb-0">Конфликтов</p>
+                </div>
+              </div>
+            `;
+          }
+
+          document.getElementById('autofillStatsContent').innerHTML = html;
+        }
+      } catch (error) {
+        console.error('Ошибка загрузки статистики:', error);
+      }
+    }
+
+    // Начать автозаполнение
+    async function startAutofill() {
+      const fillType = document.getElementById('fillType').value;
+      const week = parseInt(document.getElementById('fillWeek').value) || 1;
+      const semester = parseInt(document.getElementById('fillSemester').value) || 1;
+
+      // Блокируем кнопку
+      document.getElementById('startAutofillBtn').disabled = true;
+
+      // Показываем прогресс
+      const progressDiv = document.getElementById('autofillProgress');
+      const progressBar = progressDiv.querySelector('.progress-bar');
+      const progressText = document.getElementById('progressText');
+
+      progressDiv.style.display = 'block';
+      progressBar.style.width = '10%';
+      progressText.textContent = 'Подготовка данных...';
+
+      try {
+        // Шаг 1: Получаем список групп для автозаполнения
+        progressBar.style.width = '20%';
+        progressText.textContent = 'Загрузка групп...';
+
+        const groupsResponse = await fetch('/api/data/groups');
+        if (!groupsResponse.ok) throw new Error('Ошибка загрузки групп');
+
+        const groups = await groupsResponse.json();
+
+        // Шаг 2: Проверяем, что у всех групп есть предметы
+        progressBar.style.width = '40%';
+        progressText.textContent = 'Проверка предметов...';
+
+        let allGroupsHaveSubjects = true;
+        let groupsWithoutSubjects = [];
+
+        for (const group of groups) {
+          const subjectsResponse = await fetch(`/api/group/${group.id}/subjects`);
+          if (subjectsResponse.ok) {
+            const data = await subjectsResponse.json();
+            if (!data.subjects || data.subjects.length === 0) {
+              allGroupsHaveSubjects = false;
+              groupsWithoutSubjects.push(group.name);
+            }
+          }
+        }
+
+        if (!allGroupsHaveSubjects) {
+          progressDiv.style.display = 'none';
+          document.getElementById('autofillResult').innerHTML = `
+            <div class="alert alert-warning">
+              <h5><i class="bi bi-exclamation-triangle"></i> Не все группы имеют предметы</h5>
+              <p>Следующие группы не имеют предметов:</p>
+              <ul>
+                ${groupsWithoutSubjects.map(name => `<li>${name}</li>`).join('')}
+              </ul>
+              <p>Пожалуйста, добавьте предметы всем группам перед автозаполнением.</p>
+            </div>
+          `;
+          document.getElementById('startAutofillBtn').disabled = false;
+          return;
+        }
+
+        // Шаг 3: Запускаем автозаполнение
+        progressBar.style.width = '60%';
+        progressText.textContent = 'Запуск автозаполнения...';
+
+        const response = await fetch('/api/schedule/autofill', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            type: fillType,
+            week: week,
+            semester: semester
+          })
+        });
+
+        progressBar.style.width = '80%';
+        progressText.textContent = 'Обработка результатов...';
+
+        const result = await response.json();
+
+        progressBar.style.width = '100%';
+        progressText.textContent = 'Готово!';
+
+        // Показываем результаты
+        if (result.success) {
+          document.getElementById('autofillResult').innerHTML = `
+            <div class="alert alert-success">
+              <h5><i class="bi bi-check-circle"></i> Автозаполнение успешно завершено!</h5>
+              <p><strong>Создано записей:</strong> ${result.created_entries || 0}</p>
+              <p><strong>Расписание:</strong> ${fillType === 'both' ? 'Текущее и основное' : fillType === 'current' ? 'Только текущее' : 'Только основное'}</p>
+              <p><strong>Неделя:</strong> ${week}</p>
+              <p><strong>Семестр:</strong> ${semester}</p>
+              ${result.conflicts ? `<p><strong>Конфликтов:</strong> ${result.conflicts}</p>` : ''}
+              ${result.errors ? `<p><strong>Ошибок:</strong> ${result.errors}</p>` : ''}
+            </div>
+          `;
+
+          // Обновляем статистику
+          setTimeout(() => {
+            loadAutofillStats();
+          }, 1000);
+
+        } else {
+          document.getElementById('autofillResult').innerHTML = `
+            <div class="alert alert-danger">
+              <h5><i class="bi bi-x-circle"></i> Ошибка автозаполнения</h5>
+              <p>${result.message || 'Неизвестная ошибка'}</p>
+              ${result.details ? `<p><small>${result.details}</small></p>` : ''}
+            </div>
+          `;
+        }
+
+      } catch (error) {
+        console.error('Ошибка автозаполнения:', error);
+
+        progressDiv.style.display = 'none';
+        document.getElementById('autofillResult').innerHTML = `
+          <div class="alert alert-danger">
+            <h5><i class="bi bi-x-circle"></i> Ошибка при выполнении автозаполнения</h5>
+            <p>${error.message}</p>
+          </div>
+        `;
+
+      } finally {
+        // Разблокируем кнопку
+        setTimeout(() => {
+          document.getElementById('startAutofillBtn').disabled = false;
+        }, 3000);
+      }
+    }
+
+    // Проверка конфликтов
+    async function checkConflicts() {
+      const modal = new bootstrap.Modal(document.getElementById('conflictsModal'));
+      modal.show();
+
+      try {
+        // ИСПРАВЛЕНО: изменен URL с дефиса на подчеркивание
+        const response = await fetch('/api/schedule/check_conflicts');
+        const result = await response.json();
+
+        let html = '';
+
+        if (result.success) {
+          const conflicts = result.conflicts || [];
+
+          if (conflicts.length === 0) {
+            html = `
+              <div class="alert alert-success">
+                <h5><i class="bi bi-check-circle"></i> Конфликтов не найдено!</h5>
+                <p class="mb-0">Расписание не содержит конфликтов.</p>
+              </div>
+            `;
+          } else {
+            html = `
+              <div class="alert alert-warning">
+                <h5><i class="bi bi-exclamation-triangle"></i> Найдено конфликтов: ${conflicts.length}</h5>
+                <p>Следующие конфликты требуют внимания:</p>
+              </div>
+            `;
+
+            conflicts.forEach((conflict, index) => {
+              html += `
+                <div class="card mb-3 border-warning">
+                  <div class="card-header bg-warning text-dark">
+                    <strong>Конфликт #${index + 1}</strong>
+                    <span class="badge bg-danger float-end">${conflict.type || 'unknown'}</span>
+                  </div>
+                  <div class="card-body">
+                    <p><strong>Описание:</strong> ${conflict.message || 'Не указано'}</p>
+                    <p><strong>Группы:</strong> ${conflict.groups ? conflict.groups.join(', ') : 'Не указано'}</p>
+                    <p><strong>Преподаватели:</strong> ${conflict.teacher || 'Не указано'}</p>
+                    <p><strong>Аудитории:</strong> ${conflict.room || 'Не указано'}</p>
+                    <p><strong>Время:</strong> ${conflict.day || ''}, ${conflict.lesson_number || ''} пара</p>
+                  </div>
+                </div>
+              `;
+            });
+          }
+
+        } else {
+          html = `
+            <div class="alert alert-danger">
+              <h5><i class="bi bi-x-circle"></i> Ошибка проверки конфликтов</h5>
+              <p>${result.message || 'Неизвестная ошибка'}</p>
+            </div>
+          `;
+        }
+
+        document.getElementById('conflictsContent').innerHTML = html;
+
+      } catch (error) {
+        document.getElementById('conflictsContent').innerHTML = `
+          <div class="alert alert-danger">
+            <h5><i class="bi bi-x-circle"></i> Ошибка сети</h5>
+            <p>${error.message}</p>
+          </div>
+        `;
+      }
+    }
+
+    // Вспомогательная функция для показа сообщений
+    function showMessage(elementId, message, type = 'info') {
+      const element = document.getElementById(elementId);
+      if (!element) return;
+
+      const alertClass = type === 'success' ? 'alert-success' :
+        type === 'danger' ? 'alert-danger' :
+          type === 'warning' ? 'alert-warning' : 'alert-info';
+
+      element.innerHTML = `
+        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+          ${message}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      `;
+
+      // Автоматически скрываем через 5 секунд
+      setTimeout(() => {
+        const alert = element.querySelector('.alert');
+        if (alert) {
+          const bsAlert = new bootstrap.Alert(alert);
+          bsAlert.close();
+        }
+      }, 5000);
+    }
+
+    // Экспортируем функции для отладки
+    window.manageGroupSubjects = manageGroupSubjects;
+    window.managePractice = managePractice;
+    window.managePracticeForGroup = managePracticeForGroup;
+    window.deleteGroup = deleteGroup;
+    window.showAddGroupModal = showAddGroupModal;
+    window.addGroup = addGroup;
+    window.showAutofillModal = showAutofillModal;
+    window.startAutofill = startAutofill;
+    window.checkConflicts = checkConflicts;
+    window.removeGroupSubject = removeGroupSubject;
+    window.updateSubjectHours = updateSubjectHours;
+    window.updateSemesterHours = updateSemesterHours;
+    window.savePractice = savePractice;
+    window.deletePractice = deletePractice;
+  </script>
+</body>
+
+</html>

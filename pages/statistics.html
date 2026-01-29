@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Статистика</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+
+    .navbar-custom {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+      margin-bottom: 20px;
+    }
+
+    .chart-container {
+      height: 300px;
+      position: relative;
+    }
+
+    .progress-container {
+      margin-top: 10px;
+    }
+
+    .progress-label {
+      font-size: 0.85rem;
+      margin-bottom: 5px;
+    }
+
+    .hours-badge {
+      background-color: #28a745;
+      font-size: 0.8rem;
+      padding: 3px 8px;
+      border-radius: 10px;
+    }
+
+    .conflict-indicator {
+      color: #dc3545;
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.5;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Навигация -->
+  <nav class="navbar navbar-expand-lg navbar-dark navbar-custom">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/admin">
+        <i class="bi bi-arrow-left"></i> Статистика
+      </a>
+      <div class="navbar-nav ms-auto">
+        <span class="navbar-text me-3" id="userInfo">Загрузка...</span>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container-fluid py-3">
+    <!-- Фильтры -->
+    <div class="stat-card">
+      <div class="row g-3 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label">Неделя:</label>
+          <input type="number" class="form-control" id="weekInput" min="1" max="52" value="1"
+            onchange="loadStatistics()">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Семестр:</label>
+          <select class="form-select" id="semesterSelect" onchange="loadStatistics()">
+            <option value="1">1 семестр</option>
+            <option value="2">2 семестр</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Тип статистики:</label>
+          <select class="form-select" id="statType" onchange="loadStatistics()">
+            <option value="full">Полная статистика</option>
+            <option value="hours">По часам (проведено/осталось)</option>
+            <option value="conflicts">Конфликты</option>
+            <option value="autofill">Статистика автозаполнения</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-primary w-100" onclick="loadStatistics()">
+            <i class="bi bi-arrow-clockwise"></i> Обновить
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Основная статистика -->
+    <div class="row mb-4" id="mainStats">
+      <div class="col-md-3">
+        <div class="stat-card text-center">
+          <h3 id="totalLessons">0</h3>
+          <p class="text-muted mb-0">Всего занятий</p>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stat-card text-center">
+          <h3 id="completedHours">0</h3>
+          <p class="text-muted mb-0">Часов проведено</p>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stat-card text-center">
+          <h3 id="remainingHours">0</h3>
+          <p class="text-muted mb-0">Часов осталось</p>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stat-card text-center">
+          <h3 id="conflictCount">0</h3>
+          <p class="text-muted mb-0">Конфликтов</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Прогресс выполнения -->
+    <div class="stat-card" id="progressCard" style="display: none;">
+      <h5 class="mb-3"><i class="bi bi-speedometer2"></i> Прогресс выполнения учебного плана</h5>
+      <div id="progressContent">
+        <!-- Прогресс будет загружен здесь -->
+      </div>
+    </div>
+
+    <!-- Таблица статистики -->
+    <div class="stat-card" id="tableCard">
+      <h5 class="mb-3" id="tableTitle">Полная статистика</h5>
+      <div class="table-responsive">
+        <table class="table table-hover" id="statsTable">
+          <thead>
+            <tr id="tableHeaders">
+              <!-- Заголовки будут загружены динамически -->
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <!-- Данные будут загружены динамически -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Диаграмма -->
+    <div class="stat-card" id="chartCard">
+      <h5 class="mb-3">Визуализация данных</h5>
+      <div class="chart-container">
+        <canvas id="statsChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    let statsChart = null;
+    let currentSettings = {};
+
+    // Загрузка при старте
+    document.addEventListener('DOMContentLoaded', async function () {
+      await checkAuth();
+      await loadUserInfo();
+      await loadCurrentSettings();
+      await loadStatistics();
+    });
+
+    // Проверка авторизации
+    async function checkAuth() {
+      try {
+        const response = await fetch('/api/user_info');
+        const data = await response.json();
+
+        if (!data.authenticated || data.role !== 'admin') {
+          window.location.href = '/login';
+          return false;
+        }
+        return true;
+      } catch (error) {
+        window.location.href = '/login';
+        return false;
+      }
+    }
+
+    // Загрузка информации о пользователе
+    async function loadUserInfo() {
+      try {
+        const response = await fetch('/api/user_info');
+        const data = await response.json();
+
+        if (data.authenticated) {
+          document.getElementById('userInfo').innerHTML = `
+            <i class="bi bi-person-circle"></i> ${data.username}
+          `;
+        }
+      } catch (error) {
+        console.error('Ошибка загрузки информации о пользователе:', error);
+      }
+    }
+
+    // Загрузка текущих настроек
+    async function loadCurrentSettings() {
+      try {
+        const response = await fetch('/api/settings/current');
+        if (response.ok) {
+          currentSettings = await response.json();
+          document.getElementById('weekInput').value = currentSettings.week || 1;
+          document.getElementById('semesterSelect').value = currentSettings.semester || 1;
+        }
+      } catch (error) {
+        console.error('Ошибка загрузки настроек:', error);
+      }
+    }
+
+    // Загрузка статистики
+    async function loadStatistics() {
+      const week = document.getElementById('weekInput').value;
+      const semester = document.getElementById('semesterSelect').value;
+      const statType = document.getElementById('statType').value;
+
+      // Показываем индикатор загрузки
+      document.getElementById('tableBody').innerHTML = `
+        <tr>
+          <td colspan="6" class="text-center">
+            <div class="spinner-border spinner-border-sm" role="status"></div>
+            <span class="ms-2">Загрузка данных...</span>
+          </td>
+        </tr>
+      `;
+
+      try {
+        if (statType === 'full' || statType === 'hours') {
+          await loadFullStatistics(week, semester, statType);
+        } else if (statType === 'conflicts') {
+          await loadConflictsStatistics(week, semester);
+        } else if (statType === 'autofill') {
+          await loadAutofillStatistics();
+        }
+
+      } catch (error) {
+        console.error('Ошибка загрузки статистики:', error);
+        document.getElementById('tableBody').innerHTML = `
+          <tr>
+            <td colspan="6" class="text-center text-danger">
+              <i class="bi bi-exclamation-triangle"></i> ${error.message}
+            </td>
+          </tr>
+        `;
+      }
+    }
+
+    // Загрузка полной статистики
+    async function loadFullStatistics(week, semester, statType) {
+      try {
+        const response = await fetch(`/api/statistics/full?week=${week}&semester=${semester}`);
+        if (!response.ok) {
+          throw new Error(`Ошибка сервера: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+          displayFullStatistics(data, statType);
+
+          // Проверяем конфликты
+          await checkForConflicts(week, semester);
+        } else {
+          throw new Error(data.message || 'Ошибка загрузки данных');
+        }
+
+      } catch (error) {
+        console.error('Ошибка загрузки статистики:', error);
+        throw error;
+      }
+    }
+
+    // Отображение полной статистики
+    function displayFullStatistics(data, statType) {
+      // Обновляем основные показатели
+      document.getElementById('totalLessons').textContent = data.total_completed_hours / 2;
+      document.getElementById('completedHours').textContent = data.total_completed_hours;
+      document.getElementById('remainingHours').textContent = data.total_remaining_hours;
+
+      // Показываем прогресс
+      showProgress(data.group_stats);
+
+      if (statType === 'full') {
+        displayGroupStatsFull(data.group_stats);
+      } else if (statType === 'hours') {
+        displayHoursStats(data.group_stats);
+      }
+    }
+
+    // Показать прогресс выполнения
+    function showProgress(groupStats) {
+      const progressCard = document.getElementById('progressCard');
+      const progressContent = document.getElementById('progressContent');
+
+      if (groupStats.length > 0) {
+        progressCard.style.display = 'block';
+
+        let html = '<div class="row">';
+
+        groupStats.forEach(group => {
+          const progressPercent = group.progress || 0;
+          const progressColor = progressPercent >= 100 ? 'bg-success' :
+            progressPercent >= 75 ? 'bg-info' :
+              progressPercent >= 50 ? 'bg-warning' : 'bg-danger';
+
+          html += `
+            <div class="col-md-6 mb-3">
+              <div class="progress-label">
+                <strong>${group.group_name}</strong> (${group.course} курс)
+                <span class="float-end">${progressPercent}%</span>
+              </div>
+              <div class="progress">
+                <div class="progress-bar ${progressColor}" 
+                     role="progressbar" 
+                     style="width: ${Math.min(progressPercent, 100)}%">
+                </div>
+              </div>
+              <div class="small text-muted">
+                ${group.completed_hours} ч проведено / ${group.total_hours} ч всего
+                ${group.remaining_hours > 0 ? `(${group.remaining_hours} ч осталось)` : '(завершено)'}
+              </div>
+            </div>
+          `;
+        });
+
+        html += '</div>';
+        progressContent.innerHTML = html;
+      } else {
+        progressCard.style.display = 'none';
+      }
+    }
+
+    // Отображение статистики по группам (полная)
+    function displayGroupStatsFull(groupStats) {
+      const headers = document.getElementById('tableHeaders');
+      const body = document.getElementById('tableBody');
+      const tableTitle = document.getElementById('tableTitle');
+
+      tableTitle.textContent = 'Статистика по группам';
+
+      headers.innerHTML = `
+        <th>Группа</th>
+        <th class="text-center">Курс</th>
+        <th class="text-center">Всего часов</th>
+        <th class="text-center">Проведено</th>
+        <th class="text-center">Осталось</th>
+        <th class="text-center">Прогресс</th>
+        <th class="text-center">Занятий</th>
+        <th class="text-center">Предметов</th>
+      `;
+
+      // Сортировка по курсу и названию группы
+      groupStats.sort((a, b) => {
+        if (a.course !== b.course) return a.course - b.course;
+        return a.group_name.localeCompare(b.group_name);
+      });
+
+      body.innerHTML = '';
+
+      if (groupStats.length === 0) {
+        body.innerHTML = `
+          <tr>
+            <td colspan="8" class="text-center text-muted">
+              <i class="bi bi-info-circle"></i> Нет данных для отображения
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      groupStats.forEach(group => {
+        const progressPercent = group.progress || 0;
+        const progressColor = progressPercent >= 100 ? 'success' :
+          progressPercent >= 75 ? 'info' :
+            progressPercent >= 50 ? 'warning' : 'danger';
+
+        const subjectsCount = group.subjects ? group.subjects.length : 0;
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>
+            <strong>${group.group_name}</strong>
+            ${subjectsCount > 0 ? `<br><small class="text-muted">${subjectsCount} предметов</small>` : ''}
+          </td>
+          <td class="text-center">
+            <span class="badge bg-secondary">${group.course}</span>
+          </td>
+          <td class="text-center">
+            <span class="badge bg-primary">${group.total_hours}</span>
+          </td>
+          <td class="text-center">
+            <span class="badge bg-success">${group.completed_hours}</span>
+          </td>
+          <td class="text-center">
+            <span class="badge ${group.remaining_hours > 0 ? 'bg-warning' : 'bg-secondary'}">
+              ${group.remaining_hours}
+            </span>
+          </td>
+          <td class="text-center">
+            <span class="badge bg-${progressColor}">${progressPercent}%</span>
+          </td>
+          <td class="text-center">
+            ${group.total_lessons}
+            ${group.changed_lessons > 0 ?
+            `<br><small class="text-warning">(${group.changed_lessons} изменено)</small>` : ''}
+          </td>
+          <td class="text-center">${subjectsCount}</td>
+        `;
+        body.appendChild(row);
+      });
+
+      // Создаем диаграмму с прогрессом
+      createProgressChart(groupStats);
+    }
+
+    // Отображение статистики по часам
+    function displayHoursStats(groupStats) {
+      const headers = document.getElementById('tableHeaders');
+      const body = document.getElementById('tableBody');
+      const tableTitle = document.getElementById('tableTitle');
+
+      tableTitle.textContent = 'Статистика по часам (проведено/осталось)';
+
+      headers.innerHTML = `
+        <th>Группа</th>
+        <th class="text-center">Курс</th>
+        <th>Предметы и часы</th>
+        <th class="text-center">Проведено</th>
+        <th class="text-center">Осталось</th>
+        <th class="text-center">% выполнения</th>
+      `;
+
+      // Сортировка по курсу и названию группы
+      groupStats.sort((a, b) => {
+        if (a.course !== b.course) return a.course - b.course;
+        return a.group_name.localeCompare(b.group_name);
+      });
+
+      body.innerHTML = '';
+
+      if (groupStats.length === 0) {
+        body.innerHTML = `
+          <tr>
+            <td colspan="6" class="text-center text-muted">
+              <i class="bi bi-info-circle"></i> Нет данных для отображения
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      groupStats.forEach(group => {
+        const progressPercent = group.progress || 0;
+        const progressColor = progressPercent >= 100 ? 'success' :
+          progressPercent >= 75 ? 'info' :
+            progressPercent >= 50 ? 'warning' : 'danger';
+
+        let subjectsHtml = '';
+        if (group.subjects && group.subjects.length > 0) {
+          group.subjects.forEach(subject => {
+            const semesterHours = currentSettings.semester == 1 ?
+              subject.total_hours_semester1 : subject.total_hours_semester2;
+
+            subjectsHtml += `
+              <div class="mb-1">
+                <small>${subject.subject_name}: ${subject.hours_per_week} ч/нед</small>
+                ${semesterHours > 0 ?
+                `<br><small class="text-muted">Всего за семестр: ${semesterHours} ч</small>` : ''}
+              </div>
+            `;
+          });
+        } else {
+          subjectsHtml = '<small class="text-muted">Нет предметов</small>';
+        }
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td><strong>${group.group_name}</strong></td>
+          <td class="text-center">${group.course}</td>
+          <td>${subjectsHtml}</td>
+          <td class="text-center">
+            <div class="hours-badge">${group.completed_hours} ч</div>
+            <div class="small text-muted">${group.total_lessons} занятий</div>
+          </td>
+          <td class="text-center">
+            <div class="badge ${group.remaining_hours > 0 ? 'bg-warning' : 'bg-secondary'}">
+              ${group.remaining_hours} ч
+            </div>
+          </td>
+          <td class="text-center">
+            <div class="progress" style="height: 20px; width: 100px; margin: 0 auto;">
+              <div class="progress-bar bg-${progressColor}" 
+                   style="width: ${Math.min(progressPercent, 100)}%">
+                ${progressPercent}%
+              </div>
+            </div>
+          </td>
+        `;
+        body.appendChild(row);
+      });
+
+      // Создаем диаграмму с часами
+      createHoursChart(groupStats);
+    }
+
+    // Проверка конфликтов
+    async function checkForConflicts(week, semester) {
+      try {
+        const response = await fetch(`/api/schedule/check_conflicts?week=${week}&semester=${semester}`);
+        const data = await response.json();
+
+        if (data.success) {
+          document.getElementById('conflictCount').textContent = data.conflicts.length;
+
+          if (data.conflicts.length > 0) {
+            document.getElementById('conflictCount').className = 'conflict-indicator';
+            document.getElementById('conflictCount').title = 'Есть конфликты в расписании';
+          } else {
+            document.getElementById('conflictCount').className = '';
+            document.getElementById('conflictCount').title = 'Конфликтов нет';
+          }
+        }
+      } catch (error) {
+        console.error('Ошибка проверки конфликтов:', error);
+      }
+    }
+
+    // Загрузка статистики конфликтов
+    async function loadConflictsStatistics(week, semester) {
+      try {
+        const response = await fetch(`/api/schedule/check_conflicts?week=${week}&semester=${semester}`);
+        const data = await response.json();
+
+        if (data.success) {
+          displayConflictsStatistics(data);
+        } else {
+          throw new Error(data.message || 'Ошибка загрузки конфликтов');
+        }
+      } catch (error) {
+        console.error('Ошибка загрузки конфликтов:', error);
+        throw error;
+      }
+    }
+
+    // Отображение статистики конфликтов
+    function displayConflictsStatistics(data) {
+      const headers = document.getElementById('tableHeaders');
+      const body = document.getElementById('tableBody');
+      const tableTitle = document.getElementById('tableTitle');
+      const chartCard = document.getElementById('chartCard');
+      const progressCard = document.getElementById('progressCard');
+
+      tableTitle.textContent = 'Конфликты в расписании';
+      chartCard.style.display = 'none';
+      progressCard.style.display = 'none';
+
+      headers.innerHTML = `
+        <th>Тип конфликта</th>
+        <th>Детали</th>
+        <th>День</th>
+        <th>Урок</th>
+        <th>Группы/Преподаватели</th>
+      `;
+
+      body.innerHTML = '';
+
+      if (!data.has_conflicts || data.conflicts.length === 0) {
+        body.innerHTML = `
+          <tr>
+            <td colspan="5" class="text-center text-success">
+              <i class="bi bi-check-circle"></i> Конфликтов не обнаружено!
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      data.conflicts.forEach(conflict => {
+        let typeText = '';
+        let details = '';
+
+        switch (conflict.type) {
+          case 'teacher_conflict':
+            typeText = '<span class="badge bg-danger">Конфликт преподавателя</span>';
+            details = `Преподаватель ведет одновременно в ${conflict.groups.length} группах`;
+            break;
+          case 'group_conflict':
+            typeText = '<span class="badge bg-warning">Конфликт группы</span>';
+            details = `Группа имеет ${conflict.subjects.length} занятия одновременно`;
+            break;
+          case 'room_conflict':
+            typeText = '<span class="badge bg-info">Конфликт аудитории</span>';
+            details = `Аудитория занята ${conflict.groups.length} группами одновременно`;
+            break;
+        }
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${typeText}</td>
+          <td>${conflict.message}</td>
+          <td>${conflict.day}</td>
+          <td class="text-center">${conflict.lesson_number}</td>
+          <td>
+            ${conflict.groups ? conflict.groups.join(', ') : ''}
+            ${conflict.teacher ? `<br><small>Преподаватель: ${conflict.teacher}</small>` : ''}
+            ${conflict.room ? `<br><small>Аудитория: ${conflict.room}</small>` : ''}
+          </td>
+        `;
+        body.appendChild(row);
+      });
+
+      // Создаем диаграмму с типами конфликтов
+      createConflictsChart(data.conflicts);
+    }
+
+    // Загрузка статистики автозаполнения
+    async function loadAutofillStatistics() {
+      try {
+        const response = await fetch('/api/autofill/logs');
+        const data = await response.json();
+
+        if (data.success) {
+          displayAutofillStatistics(data);
+        } else {
+          throw new Error(data.message || 'Ошибка загрузки статистики автозаполнения');
+        }
+      } catch (error) {
+        console.error('Ошибка загрузки статистики автозаполнения:', error);
+        throw error;
+      }
+    }
+
+    // Отображение статистики автозаполнения
+    function displayAutofillStatistics(data) {
+      const headers = document.getElementById('tableHeaders');
+      const body = document.getElementById('tableBody');
+      const tableTitle = document.getElementById('tableTitle');
+      const chartCard = document.getElementById('chartCard');
+      const progressCard = document.getElementById('progressCard');
+
+      tableTitle.textContent = 'Статистика автозаполнения';
+      chartCard.style.display = 'block';
+      progressCard.style.display = 'none';
+
+      headers.innerHTML = `
+        <th>Дата и время</th>
+        <th class="text-center">Неделя</th>
+        <th class="text-center">Семестр</th>
+        <th class="text-center">Тип</th>
+        <th class="text-center">Добавлено</th>
+        <th class="text-center">Конфликтов</th>
+        <th class="text-center">Ошибок</th>
+        <th>Статус</th>
+      `;
+
+      body.innerHTML = '';
+
+      if (!data.logs || data.logs.length === 0) {
+        body.innerHTML = `
+          <tr>
+            <td colspan="8" class="text-center text-muted">
+              <i class="bi bi-info-circle"></i> Нет данных об автозаполнении
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      data.logs.forEach(log => {
+        let typeText = '';
+        switch (log.type) {
+          case 'both': typeText = 'Текущее и основное'; break;
+          case 'current': typeText = 'Только текущее'; break;
+          case 'main': typeText = 'Только основное'; break;
+        }
+
+        const status = log.conflicts > 0 ?
+          '<span class="badge bg-warning">Есть конфликты</span>' :
+          '<span class="badge bg-success">Успешно</span>';
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${log.created_at}</td>
+          <td class="text-center">${log.week}</td>
+          <td class="text-center">${log.semester}</td>
+          <td class="text-center"><small>${typeText}</small></td>
+          <td class="text-center">
+            <span class="badge bg-primary">${log.entries_added}</span>
+          </td>
+          <td class="text-center">
+            <span class="badge ${log.conflicts > 0 ? 'bg-warning' : 'bg-secondary'}">
+              ${log.conflicts}
+            </span>
+          </td>
+          <td class="text-center">
+            <span class="badge ${log.errors > 0 ? 'bg-danger' : 'bg-secondary'}">
+              ${log.errors}
+            </span>
+          </td>
+          <td>${status}</td>
+        `;
+        body.appendChild(row);
+      });
+
+      // Создаем диаграмму со статистикой автозаполнения
+      createAutofillChart(data.logs);
+    }
+
+    // Создание диаграммы прогресса
+    function createProgressChart(groupStats) {
+      const ctx = document.getElementById('statsChart').getContext('2d');
+
+      if (statsChart) {
+        statsChart.destroy();
+      }
+
+      const labels = groupStats.map(g => g.group_name);
+      const data = groupStats.map(g => g.progress || 0);
+      const colors = data.map(value => {
+        if (value >= 100) return 'rgba(40, 167, 69, 0.7)';
+        if (value >= 75) return 'rgba(23, 162, 184, 0.7)';
+        if (value >= 50) return 'rgba(255, 193, 7, 0.7)';
+        return 'rgba(220, 53, 69, 0.7)';
+      });
+
+      statsChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Прогресс выполнения (%)',
+            data: data,
+            backgroundColor: colors,
+            borderColor: colors.map(color => color.replace('0.7', '1')),
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              callbacks: {
+                label: function (context) {
+                  const group = groupStats[context.dataIndex];
+                  return [
+                    `Прогресс: ${context.parsed.y}%`,
+                    `Проведено: ${group.completed_hours} ч`,
+                    `Осталось: ${group.remaining_hours} ч`,
+                    `Всего: ${group.total_hours} ч`
+                  ];
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 100,
+              title: {
+                display: true,
+                text: 'Прогресс (%)'
+              }
+            },
+            x: {
+              ticks: {
+                maxRotation: 45,
+                minRotation: 45
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Создание диаграммы часов
+    function createHoursChart(groupStats) {
+      const ctx = document.getElementById('statsChart').getContext('2d');
+
+      if (statsChart) {
+        statsChart.destroy();
+      }
+
+      const labels = groupStats.map(g => g.group_name);
+      const completedData = groupStats.map(g => g.completed_hours);
+      const remainingData = groupStats.map(g => g.remaining_hours);
+
+      statsChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Проведено часов',
+              data: completedData,
+              backgroundColor: 'rgba(40, 167, 69, 0.7)',
+              borderColor: 'rgba(40, 167, 69, 1)',
+              borderWidth: 1
+            },
+            {
+              label: 'Осталось часов',
+              data: remainingData,
+              backgroundColor: 'rgba(255, 193, 7, 0.7)',
+              borderColor: 'rgba(255, 193, 7, 1)',
+              borderWidth: 1
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: function (context) {
+                  const group = groupStats[context.dataIndex];
+                  return [
+                    `${context.dataset.label}: ${context.parsed.y} ч`,
+                    `Всего часов: ${group.total_hours} ч`,
+                    `Прогресс: ${group.progress || 0}%`
+                  ];
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Количество часов'
+              },
+              ticks: {
+                callback: function (value) {
+                  return value + ' ч';
+                }
+              }
+            },
+            x: {
+              ticks: {
+                maxRotation: 45,
+                minRotation: 45
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Создание диаграммы конфликтов
+    function createConflictsChart(conflicts) {
+      const ctx = document.getElementById('statsChart').getContext('2d');
+
+      if (statsChart) {
+        statsChart.destroy();
+      }
+
+      // Группируем конфликты по типам
+      const conflictTypes = {};
+      conflicts.forEach(conflict => {
+        if (!conflictTypes[conflict.type]) {
+          conflictTypes[conflict.type] = 0;
+        }
+        conflictTypes[conflict.type]++;
+      });
+
+      const labels = Object.keys(conflictTypes).map(type => {
+        switch (type) {
+          case 'teacher_conflict': return 'Конфликт преподавателя';
+          case 'group_conflict': return 'Конфликт группы';
+          case 'room_conflict': return 'Конфликт аудитории';
+          default: return type;
+        }
+      });
+
+      const data = Object.values(conflictTypes);
+      const colors = ['rgba(220, 53, 69, 0.7)', 'rgba(255, 193, 7, 0.7)', 'rgba(23, 162, 184, 0.7)'];
+
+      statsChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: data,
+            backgroundColor: colors,
+            borderColor: colors.map(color => color.replace('0.7', '1')),
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom'
+            },
+            tooltip: {
+              callbacks: {
+                label: function (context) {
+                  return `${context.label}: ${context.parsed} конфликт(ов)`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Создание диаграммы автозаполнения
+    function createAutofillChart(logs) {
+      const ctx = document.getElementById('statsChart').getContext('2d');
+
+      if (statsChart) {
+        statsChart.destroy();
+      }
+
+      // Берем последние 10 записей
+      const recentLogs = logs.slice(0, 10).reverse();
+      const labels = recentLogs.map(log => log.created_at.split(' ')[0]);
+      const addedData = recentLogs.map(log => log.entries_added);
+      const conflictData = recentLogs.map(log => log.conflicts);
+
+      statsChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Добавлено занятий',
+              data: addedData,
+              borderColor: 'rgba(40, 167, 69, 1)',
+              backgroundColor: 'rgba(40, 167, 69, 0.1)',
+              tension: 0.1,
+              fill: true
+            },
+            {
+              label: 'Конфликтов',
+              data: conflictData,
+              borderColor: 'rgba(255, 193, 7, 1)',
+              backgroundColor: 'rgba(255, 193, 7, 0.1)',
+              tension: 0.1,
+              fill: true
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: function (context) {
+                  const log = recentLogs[context.dataIndex];
+                  return [
+                    `${context.dataset.label}: ${context.parsed.y}`,
+                    `Тип: ${log.type === 'both' ? 'Текущее и основное' :
+                      log.type === 'current' ? 'Только текущее' : 'Только основное'}`,
+                    `Ошибок: ${log.errors}`
+                  ];
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Количество'
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: 'Дата'
+              }
+            }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+
+</html>

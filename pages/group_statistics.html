@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Нагрузка групп по предметам</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .table th {
+      background-color: #f8f9fa;
+    }
+
+    .form-container {
+      background-color: #f8f9fa;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+
+    .load-item {
+      border-left: 4px solid #007bff;
+      padding: 10px;
+      margin-bottom: 10px;
+      background-color: white;
+      border-radius: 4px;
+    }
+
+    .no-teacher {
+      color: #dc3545;
+      font-style: italic;
+    }
+  </style>
+</head>
+
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container">
+      <a class="navbar-brand" href="/">📚 Расписание Колледжа</a>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    <h2>👥 Нагрузка групп по предметам</h2>
+
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5 class="mb-0">➕ Добавить нагрузку для группы</h5>
+      </div>
+      <div class="card-body">
+        <div class="form-container">
+          <form id="addLoadForm">
+            <div class="row g-3">
+              <div class="col-md-3">
+                <label class="form-label">Группа:</label>
+                <select class="form-select" id="group_id" required>
+                  <option value="">Выберите группу</option>
+                  {% for group in groups %}
+                  <option value="{{ group.id }}">{{ group.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Предмет:</label>
+                <select class="form-select" id="subject_id" required>
+                  <option value="">Выберите предмет</option>
+                  {% for subject in subjects %}
+                  <option value="{{ subject.id }}">{{ subject.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Преподаватель:</label>
+                <select class="form-select" id="teacher_id">
+                  <option value="">Не назначен</option>
+                  {% for teacher in teachers %}
+                  <option value="{{ teacher.id }}">{{ teacher.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Часов в неделю:</label>
+                <input type="number" class="form-control" id="hours_per_week" min="0" max="40" required>
+              </div>
+              <div class="col-md-1 d-flex align-items-end">
+                <button type="submit" class="btn btn-success w-100">➕</button>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div id="formMessage" class="mt-3"></div>
+      </div>
+    </div>
+
+    <!-- Нагрузка по группам -->
+    {% if group_loads_dict %}
+    {% for group_name, loads in group_loads_dict.items() %}
+    <div class="card mb-3">
+      <div class="card-header">
+        <h5 class="mb-0">Группа: {{ group_name }}</h5>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-striped">
+            <thead>
+              <tr>
+                <th>Предмет</th>
+                <th>Преподаватель</th>
+                <th>Часов в неделю</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for load in loads %}
+              <tr id="load-row-{{ load.id }}">
+                <td>{{ load.subject }}</td>
+                <td>
+                  {% if load.teacher %}
+                  {{ load.teacher }}
+                  {% else %}
+                  <span class="no-teacher">Не назначен</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <input type="number" class="form-control form-control-sm hours-input"
+                    value="{{ load.hours_per_week }}" data-load-id="{{ load.id }}"
+                    style="width: 80px; display: inline-block;">
+                  <span class="ms-1">ч/нед</span>
+                </td>
+                <td>
+                  <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-primary edit-teacher-btn" data-load-id="{{ load.id }}"
+                      data-teacher-id="{{ load.teacher_id or '' }}">
+                      ✏️ Преподаватель
+                    </button>
+                    <button class="btn btn-outline-danger delete-load-btn" data-load-id="{{ load.id }}">
+                      🗑️ Удалить
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+              <tr>
+                <td colspan="2"><strong>Итого:</strong></td>
+                <td><strong>{{ loads|sum(attribute='hours_per_week') }} ч/нед</strong></td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="alert alert-info">
+      Нагрузка групп еще не назначена. Добавьте нагрузку используя форму выше.
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Модальное окно для редактирования преподавателя -->
+  <div class="modal fade" id="editTeacherModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Назначить преподавателя</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="editLoadId">
+          <div class="mb-3">
+            <label class="form-label">Преподаватель:</label>
+            <select class="form-select" id="editTeacherId">
+              <option value="">Не назначен</option>
+              {% for teacher in teachers %}
+              <option value="{{ teacher.id }}">{{ teacher.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="button" class="btn btn-primary" id="saveTeacherBtn">Сохранить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Добавление нагрузки
+    document.getElementById('addLoadForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      const data = {
+        group_id: document.getElementById('group_id').value,
+        subject_id: document.getElementById('subject_id').value,
+        teacher_id: document.getElementById('teacher_id').value,
+        hours_per_week: document.getElementById('hours_per_week').value
+      };
+
+      fetch('/api/group_subject_load', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+        .then(response => response.json())
+        .then(result => {
+          const messageDiv = document.getElementById('formMessage');
+          if (result.success) {
+            messageDiv.innerHTML = `<div class="alert alert-success">✅ ${result.message}</div>`;
+            setTimeout(() => location.reload(), 1000);
+          } else {
+            messageDiv.innerHTML = `<div class="alert alert-danger">❌ ${result.message}</div>`;
+          }
+        })
+        .catch(error => {
+          document.getElementById('formMessage').innerHTML =
+            `<div class="alert alert-danger">❌ Ошибка сети: ${error}</div>`;
+        });
+    });
+
+    // Редактирование количества часов
+    document.addEventListener('change', function (e) {
+      if (e.target.classList.contains('hours-input')) {
+        const loadId = e.target.getAttribute('data-load-id');
+        const hours = e.target.value;
+
+        fetch(`/api/group_subject_load/${loadId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hours_per_week: hours })
+        })
+          .then(response => response.json())
+          .then(result => {
+            if (result.success) {
+              // Обновляем итоговую сумму
+              location.reload();
+            } else {
+              alert('Ошибка: ' + result.message);
+              e.target.value = e.target.defaultValue;
+            }
+          })
+          .catch(error => {
+            alert('Ошибка сети: ' + error);
+            e.target.value = e.target.defaultValue;
+          });
+      }
+    });
+
+    // Удаление нагрузки
+    document.addEventListener('click', function (e) {
+      if (e.target.classList.contains('delete-load-btn')) {
+        const loadId = e.target.getAttribute('data-load-id');
+
+        if (confirm('Удалить эту нагрузку?')) {
+          fetch(`/api/group_subject_load/${loadId}`, {
+            method: 'DELETE'
+          })
+            .then(response => response.json())
+            .then(result => {
+              if (result.success) {
+                document.getElementById(`load-row-${loadId}`).remove();
+                // Обновляем страницу для пересчета итогов
+                setTimeout(() => location.reload(), 500);
+              } else {
+                alert('Ошибка: ' + result.message);
+              }
+            })
+            .catch(error => {
+              alert('Ошибка сети: ' + error);
+            });
+        }
+      }
+
+      // Редактирование преподавателя
+      if (e.target.classList.contains('edit-teacher-btn')) {
+        const loadId = e.target.getAttribute('data-load-id');
+        const teacherId = e.target.getAttribute('data-teacher-id');
+
+        document.getElementById('editLoadId').value = loadId;
+        document.getElementById('editTeacherId').value = teacherId;
+
+        const modal = new bootstrap.Modal(document.getElementById('editTeacherModal'));
+        modal.show();
+      }
+    });
+
+    // Сохранение преподавателя
+    document.getElementById('saveTeacherBtn').addEventListener('click', function () {
+      const loadId = document.getElementById('editLoadId').value;
+      const teacherId = document.getElementById('editTeacherId').value;
+
+      fetch(`/api/group_subject_load/${loadId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teacher_id: teacherId })
+      })
+        .then(response => response.json())
+        .then(result => {
+          if (result.success) {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editTeacherModal'));
+            modal.hide();
+            location.reload();
+          } else {
+            alert('Ошибка: ' + result.message);
+          }
+        })
+        .catch(error => {
+          alert('Ошибка сети: ' + error);
+        });
+    });
+  </script>
+</body>
+
+</html>

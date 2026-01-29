@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Детальная статистика преподавателей{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-12">
+    <h2>👨‍🏫 Детальная статистика преподавателей по группам</h2>
+
+    {% if teacher_stats %}
+    {% for teacher_name, groups in teacher_stats.items()|sort %}
+    <div class="card mb-4">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">{{ teacher_name }}</h5>
+      </div>
+      <div class="card-body">
+        {% for group_name, subjects in groups.items()|sort %}
+        <div class="card mb-3">
+          <div class="card-header bg-light">
+            <h6 class="mb-0">Группа: {{ group_name }}</h6>
+          </div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-sm table-striped">
+                <thead>
+                  <tr>
+                    <th>Предмет</th>
+                    <th>Часов</th>
+                    <th>Пар</th>
+                    <th>Процент от общей нагрузки</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% set teacher_total_hours = 0 %}
+                  {% for group_subjects in groups.values() %}
+                  {% for hours in group_subjects.values() %}
+                  {% set teacher_total_hours = teacher_total_hours + hours %}
+                  {% endfor %}
+                  {% endfor %}
+
+                  {% for subject_name, hours in subjects.items()|sort %}
+                  <tr>
+                    <td>{{ subject_name }}</td>
+                    <td>{{ hours }}</td>
+                    <td>{{ hours // 2 }}</td>
+                    <td>
+                      {% if teacher_total_hours > 0 %}
+                      {{ "%.1f"|format((hours / teacher_total_hours * 100)) }}%
+                      {% else %}
+                      0%
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                  <tr class="table-primary">
+                    <td><strong>Итого по группе {{ group_name }}:</strong></td>
+                    <td><strong>{{ subjects.values()|sum }}</strong></td>
+                    <td><strong>{{ subjects.values()|sum // 2 }}</strong></td>
+                    <td><strong>
+                        {% if teacher_total_hours > 0 %}
+                        {{ "%.1f"|format((subjects.values()|sum / teacher_total_hours * 100)) }}%
+                        {% else %}
+                        0%
+                        {% endif %}
+                      </strong></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+
+        <!-- Общая статистика преподавателя -->
+        <div class="card bg-success text-white">
+          <div class="card-body">
+            <h6 class="mb-0">Общая статистика преподавателя {{ teacher_name }}</h6>
+            <div class="row mt-2">
+              <div class="col-md-3">
+                <strong>Всего часов:</strong> {{ teacher_total_hours }}
+              </div>
+              <div class="col-md-3">
+                <strong>Всего пар:</strong> {{ teacher_total_hours // 2 }}
+              </div>
+              <div class="col-md-3">
+                <strong>Групп:</strong> {{ groups.keys()|length }}
+              </div>
+              <div class="col-md-3">
+                <strong>Предметов:</strong>
+                {% set total_subjects = 0 %}
+                {% for group_subjects in groups.values() %}
+                {% set total_subjects = total_subjects + group_subjects.keys()|length %}
+                {% endfor %}
+                {{ total_subjects }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="alert alert-info">
+      Нет данных для отображения детальной статистики преподавателей.
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

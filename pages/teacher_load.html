@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Нагрузка преподавателей</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+
+    .navbar-custom {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+      margin-bottom: 20px;
+    }
+
+    .teacher-card {
+      border-left: 4px solid #007bff;
+      padding: 15px;
+      margin-bottom: 15px;
+      background-color: white;
+      border-radius: 4px;
+    }
+
+    .subject-badge {
+      font-size: 0.8rem;
+      margin-right: 5px;
+      margin-bottom: 5px;
+    }
+
+    .progress {
+      height: 10px;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Навигация -->
+  <nav class="navbar navbar-expand-lg navbar-dark navbar-custom">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/admin">
+        <i class="bi bi-arrow-left"></i> Нагрузка преподавателей
+      </a>
+      <div class="navbar-nav ms-auto">
+        <span class="navbar-text me-3" id="userInfo">Загрузка...</span>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container-fluid py-3">
+    <!-- Общая статистика -->
+    <div class="row mb-4">
+      <div class="col-md-3">
+        <div class="stat-card text-center">
+          <h3 id="totalTeachers">0</h3>
+          <p class="text-muted mb-0">Преподавателей</p>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stat-card text-center">
+          <h3 id="totalSubjects">0</h3>
+          <p class="text-muted mb-0">Предметов</p>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stat-card text-center">
+          <h3 id="totalLessons">0</h3>
+          <p class="text-muted mb-0">Всего занятий</p>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stat-card text-center">
+          <h3 id="avgLoad">0</h3>
+          <p class="text-muted mb-0">Средняя нагрузка</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Фильтры -->
+    <div class="stat-card">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label">Фильтр по преподавателю:</label>
+          <select class="form-select" id="teacherFilter" onchange="filterTeachers()">
+            <option value="">Все преподаватели</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Фильтр по предмету:</label>
+          <select class="form-select" id="subjectFilter" onchange="filterTeachers()">
+            <option value="">Все предметы</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Сортировка:</label>
+          <select class="form-select" id="sortBy" onchange="sortTeachers()">
+            <option value="name">По имени</option>
+            <option value="load_desc">По нагрузке (убыв.)</option>
+            <option value="load_asc">По нагрузке (возр.)</option>
+            <option value="subjects_desc">По предметам (убыв.)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Список преподавателей -->
+    <div class="stat-card">
+      <h5 class="mb-3"><i class="bi bi-people"></i> Нагрузка преподавателей</h5>
+      <div id="teachersContainer">
+        <div class="text-center p-5">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Загрузка...</span>
+          </div>
+          <p class="mt-3">Загрузка данных о нагрузке...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    let allTeachers = [];
+    let allSubjects = [];
+    let teacherLoadData = [];
+    let filteredTeachers = [];
+
+    // Загрузка при старте
+    document.addEventListener('DOMContentLoaded', async function () {
+      await checkAuth();
+      await loadUserInfo();
+      await loadInitialData();
+      await loadTeacherLoad();
+    });
+
+    // Проверка авторизации
+    async function checkAuth() {
+      try {
+        const response = await fetch('/api/user_info');
+        const data = await response.json();
+
+        if (!data.authenticated || data.role !== 'admin') {
+          window.location.href = '/login';
+          return false;
+        }
+        return true;
+      } catch (error) {
+        window.location.href = '/login';
+        return false;
+      }
+    }
+
+    // Загрузка информации о пользователе
+    async function loadUserInfo() {
+      try {
+        const response = await fetch('/api/user_info');
+        const data = await response.json();
+
+        if (data.authenticated) {
+          document.getElementById('userInfo').innerHTML = `
+                        <i class="bi bi-person-circle"></i> ${data.username}
+                    `;
+        }
+      } catch (error) {
+        console.error('Ошибка загрузки информации о пользователе:', error);
+      }
+    }
+
+    // Загрузка начальных данных
+    async function loadInitialData() {
+      try {
+        // Загружаем преподавателей
+        const teachersResponse = await fetch('/api/data/teachers');
+        if (teachersResponse.ok) {
+          allTeachers = await teachersResponse.json();
+          updateTeacherFilter();
+        }
+
+        // Загружаем предметы
+        const subjectsResponse = await fetch('/api/data/subjects');
+        if (subjectsResponse.ok) {
+          allSubjects = await subjectsResponse.json();
+          updateSubjectFilter();
+        }
+
+      } catch (error) {
+        console.error('Ошибка загрузки данных:', error);
+      }
+    }
+
+    // Обновление фильтра преподавателей
+    function updateTeacherFilter() {
+      const teacherFilter = document.getElementById('teacherFilter');
+      teacherFilter.innerHTML = '<option value="">Все преподаватели</option>';
+
+      allTeachers.sort((a, b) => a.name.localeCompare(b.name)).forEach(teacher => {
+        const option = document.createElement('option');
+        option.value = teacher.id;
+        option.textContent = teacher.name;
+        teacherFilter.appendChild(option);
+      });
+    }
+
+    // Обновление фильтра предметов
+    function updateSubjectFilter() {
+      const subjectFilter = document.getElementById('subjectFilter');
+      subjectFilter.innerHTML = '<option value="">Все предметы</option>';
+
+      allSubjects.sort((a, b) => a.name.localeCompare(b.name)).forEach(subject => {
+        const option = document.createElement('option');
+        option.value = subject.id;
+        option.textContent = subject.name;
+        subjectFilter.appendChild(option);
+      });
+    }
+
+    // Загрузка данных о нагрузке
+    async function loadTeacherLoad() {
+      try {
+        // Загружаем текущее расписание для подсчета нагрузки
+        const response = await fetch('/api/schedule/current?week=1&semester=1');
+        if (!response.ok) {
+          throw new Error('Ошибка загрузки расписания');
+        }
+
+        const schedule = await response.json();
+        processTeacherLoad(schedule);
+
+      } catch (error) {
+        console.error('Ошибка:', error);
+        document.getElementById('teachersContainer').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle"></i> Ошибка загрузки данных: ${error.message}
+                    </div>
+                `;
+      }
+    }
+
+    // Обработка данных о нагрузке
+    function processTeacherLoad(schedule) {
+      // Группируем занятия по преподавателям
+      const teacherMap = new Map();
+
+      schedule.forEach(lesson => {
+        if (!teacherMap.has(lesson.teacher)) {
+          teacherMap.set(lesson.teacher, {
+            name: lesson.teacher,
+            lessons: [],
+            subjects: new Set(),
+            groups: new Set()
+          });
+        }
+
+        const teacherData = teacherMap.get(lesson.teacher);
+        teacherData.lessons.push(lesson);
+        teacherData.subjects.add(lesson.subject);
+        teacherData.groups.add(lesson.group);
+      });
+
+      // Преобразуем в массив
+      teacherLoadData = Array.from(teacherMap.values()).map(teacher => ({
+        name: teacher.name,
+        totalLessons: teacher.lessons.length,
+        totalSubjects: teacher.subjects.size,
+        totalGroups: teacher.groups.size,
+        subjects: Array.from(teacher.subjects),
+        groups: Array.from(teacher.groups)
+      }));
+
+      // Обновляем общую статистику
+      updateTotalStats(teacherLoadData);
+
+      // Отображаем преподавателей
+      filteredTeachers = [...teacherLoadData];
+      renderTeachers();
+    }
+
+    // Обновление общей статистики
+    function updateTotalStats(teachers) {
+      document.getElementById('totalTeachers').textContent = teachers.length;
+
+      const allSubjectsSet = new Set();
+      teachers.forEach(teacher => {
+        teacher.subjects.forEach(subject => allSubjectsSet.add(subject));
+      });
+      document.getElementById('totalSubjects').textContent = allSubjectsSet.size;
+
+      const totalLessons = teachers.reduce((sum, teacher) => sum + teacher.totalLessons, 0);
+      document.getElementById('totalLessons').textContent = totalLessons;
+
+      const avgLoad = teachers.length > 0 ? Math.round(totalLessons / teachers.length) : 0;
+      document.getElementById('avgLoad').textContent = avgLoad;
+    }
+
+    // Отображение преподавателей
+    function renderTeachers() {
+      const container = document.getElementById('teachersContainer');
+
+      if (filteredTeachers.length === 0) {
+        container.innerHTML = `
+                    <div class="alert alert-info">
+                        Нет данных для отображения
+                    </div>
+                `;
+        return;
+      }
+
+      let html = '';
+      filteredTeachers.forEach(teacher => {
+        // Определяем цвет карточки в зависимости от нагрузки
+        let borderColor = '#007bff'; // По умолчанию синий
+        if (teacher.totalLessons > 20) {
+          borderColor = '#dc3545'; // Красный для высокой нагрузки
+        } else if (teacher.totalLessons > 15) {
+          borderColor = '#ffc107'; // Желтый для средней нагрузки
+        }
+
+        html += `
+                    <div class="teacher-card" style="border-left-color: ${borderColor}">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h6 class="mb-2">
+                                    <strong>${teacher.name}</strong>
+                                    <span class="badge bg-primary ms-2">${teacher.totalLessons} занятий</span>
+                                </h6>
+                                <div class="mb-2">
+                                    <small class="text-muted">
+                                        <i class="bi bi-book"></i> ${teacher.totalSubjects} предметов | 
+                                        <i class="bi bi-people"></i> ${teacher.totalGroups} групп
+                                    </small>
+                                </div>
+                                <div class="mb-2">
+                                    ${teacher.subjects.map(subject => `
+                                        <span class="badge subject-badge bg-info">${subject}</span>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-end">
+                                    <div class="mb-2">
+                                        <small class="text-muted">Нагрузка:</small>
+                                        <div class="progress">
+                                            <div class="progress-bar ${teacher.totalLessons > 20 ? 'bg-danger' : teacher.totalLessons > 15 ? 'bg-warning' : 'bg-success'}" 
+                                                 role="progressbar" 
+                                                 style="width: ${Math.min(teacher.totalLessons * 5, 100)}%">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="text-muted small">
+                                        ${teacher.totalLessons} занятий в неделю
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    // Фильтрация преподавателей
+    function filterTeachers() {
+      const teacherId = document.getElementById('teacherFilter').value;
+      const subjectId = document.getElementById('subjectFilter').value;
+      const subjectName = subjectId ? allSubjects.find(s => s.id == subjectId)?.name : '';
+
+      if (!teacherId && !subjectId) {
+        filteredTeachers = [...teacherLoadData];
+      } else {
+        filteredTeachers = teacherLoadData.filter(teacher => {
+          const matchesTeacher = !teacherId || teacher.name.includes(
+            allTeachers.find(t => t.id == teacherId)?.name || ''
+          );
+          const matchesSubject = !subjectId || teacher.subjects.includes(subjectName);
+          return matchesTeacher && matchesSubject;
+        });
+      }
+
+      sortTeachers();
+    }
+
+    // Сортировка преподавателей
+    function sortTeachers() {
+      const sortBy = document.getElementById('sortBy').value;
+
+      filteredTeachers.sort((a, b) => {
+        switch (sortBy) {
+          case 'name':
+            return a.name.localeCompare(b.name);
+          case 'load_desc':
+            return b.totalLessons - a.totalLessons;
+          case 'load_asc':
+            return a.totalLessons - b.totalLessons;
+          case 'subjects_desc':
+            return b.totalSubjects - a.totalSubjects;
+          default:
+            return 0;
+        }
+      });
+
+      renderTeachers();
+    }
+  </script>
+</body>
+
+</html>

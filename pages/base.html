@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Расписание колледжа{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .navbar-brand {
+      font-weight: bold;
+    }
+
+    .lesson-card {
+      border-left: 4px solid #007bff;
+    }
+
+    .table-schedule th {
+      background-color: #f8f9fa;
+    }
+
+    .admin-menu {
+      background-color: #f8f9fa;
+      border-radius: 5px;
+      padding: 10px;
+      margin-bottom: 20px;
+    }
+
+    .changed-lesson {
+      background-color: #fff3cd !important;
+      border-left: 4px solid #ffc107;
+    }
+
+    .main-lesson {
+      background-color: #d1ecf1 !important;
+      border-left: 4px solid #17a2b8;
+    }
+  </style>
+</head>
+
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container">
+      <a class="navbar-brand" href="/">📚 Расписание Колледжа</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <div class="navbar-nav ms-auto">
+          <a class="nav-link" href="/schedule">📅 Расписание</a>
+          <a class="nav-link" href="/schedule?type=main">📋 Основное расписание</a>
+          {% if current_user.is_authenticated and current_user.role == 'admin' %}
+          <a class="nav-link" href="/admin">⚙️ Админ-панель</a>
+          <a class="nav-link" href="/semester_management">🎓 Семестры</a>
+          <a class="nav-link" href="/teacher_load">📊 Нагрузка преподавателей</a>
+          <a class="nav-link" href="/group_statistics">👥 Нагрузка групп</a>
+          <a class="nav-link" href="/statistics">📈 Статистика</a>
+          <a class="nav-link" href="/logout">🚪 Выйти</a>
+          {% elif not current_user.is_authenticated %}
+          <a class="nav-link" href="/login">🔐 Войти</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show">
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

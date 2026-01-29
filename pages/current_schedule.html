@@ -1,0 +1,1438 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Текущее расписание</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+
+    .navbar-custom {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .schedule-table {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+      overflow: hidden;
+    }
+
+    .pair-header {
+      background-color: #f8f9fa;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    .lesson-cell {
+      min-height: 120px;
+      vertical-align: top;
+      position: relative;
+      border-right: 1px solid #dee2e6;
+      border-bottom: 1px solid #dee2e6;
+    }
+
+    .lesson-card {
+      padding: 10px;
+      margin-bottom: 5px;
+      border-radius: 5px;
+      font-size: 0.85rem;
+      position: relative;
+    }
+
+    .main-lesson {
+      background-color: #d1ecf1;
+      border-left: 4px solid #17a2b8;
+    }
+
+    .changed-lesson {
+      background-color: #fff3cd;
+      border-left: 4px solid #ffc107;
+    }
+
+    .combined-lesson {
+      background-color: #f8d7da;
+      border-left: 4px solid #dc3545;
+    }
+
+    .practice-lesson {
+      background-color: #d4edda;
+      border-left: 4px solid #28a745;
+    }
+
+    .zero-lesson {
+      background-color: #e9ecef;
+      border-left: 4px solid #6c757d;
+    }
+
+    .lesson-actions {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .lesson-card:hover .lesson-actions {
+      opacity: 1;
+    }
+
+    .btn-floating {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+      margin-bottom: 10px;
+    }
+
+    .badge-combined {
+      background-color: #dc3545;
+    }
+
+    .badge-practice {
+      background-color: #28a745;
+    }
+
+    .auto-fill-btn {
+      position: fixed;
+      bottom: 80px;
+      right: 20px;
+      z-index: 1000;
+    }
+
+    .gaps-badge {
+      position: absolute;
+      top: -10px;
+      right: -10px;
+      font-size: 0.7rem;
+    }
+
+    .empty-slot {
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .empty-slot:hover {
+      background-color: #f8f9fa;
+      border: 2px dashed #007bff;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Навигация -->
+  <nav class="navbar navbar-expand-lg navbar-dark navbar-custom">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/admin">
+        <i class="bi bi-arrow-left"></i> Текущее расписание
+      </a>
+      <div class="navbar-nav ms-auto">
+        <span class="navbar-text me-3" id="currentInfo">
+          <i class="bi bi-calendar-week"></i> Загрузка...
+        </span>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container-fluid py-3">
+    <!-- Фильтры -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <div class="row g-3 align-items-end">
+          <div class="col-md-3">
+            <label class="form-label">День недели:</label>
+            <select class="form-select" id="daySelect" onchange="loadSchedule()">
+              <option value="Понедельник">Понедельник</option>
+              <option value="Вторник">Вторник</option>
+              <option value="Среда">Среда</option>
+              <option value="Четверг">Четверг</option>
+              <option value="Пятница">Пятница</option>
+              <option value="Суббота">Суббота</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Неделя:</label>
+            <input type="number" class="form-control" id="weekInput" min="1" max="52" value="1"
+              onchange="loadSchedule()">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Семестр:</label>
+            <select class="form-select" id="semesterSelect" onchange="loadSchedule()">
+              <option value="1">1 семестр</option>
+              <option value="2">2 семестр</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Группа (фильтр):</label>
+            <select class="form-select" id="groupFilter" onchange="filterSchedule()">
+              <option value="">Все группы</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <button class="btn btn-primary w-100" onclick="loadSchedule()">
+              <i class="bi bi-arrow-clockwise"></i> Обновить
+            </button>
+          </div>
+        </div>
+
+        <div class="row mt-3">
+          <div class="col-md-12">
+            <div class="btn-group">
+              <button class="btn btn-outline-success" onclick="showAddModal()">
+                <i class="bi bi-plus-circle"></i> Добавить занятие
+              </button>
+              <button class="btn btn-outline-info" onclick="showAutoFillModal()">
+                <i class="bi bi-magic"></i> Автозаполнение
+              </button>
+              <button class="btn btn-outline-warning" onclick="checkGaps()">
+                <i class="bi bi-hourglass-split"></i> Проверить пропуски
+              </button>
+              <button class="btn btn-outline-danger" onclick="clearDay()">
+                <i class="bi bi-trash"></i> Очистить день
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Информация о пропусках -->
+    <div class="alert alert-info" id="gapsAlert" style="display: none;">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <i class="bi bi-info-circle"></i>
+          <span id="gapsMessage">Обнаружены пропуски в расписании</span>
+        </div>
+        <button class="btn btn-sm btn-outline-primary" onclick="fillGaps()">
+          <i class="bi bi-magic"></i> Заполнить автоматически
+        </button>
+      </div>
+    </div>
+
+    <!-- Таблица расписания -->
+    <div class="schedule-table">
+      <div id="scheduleContainer">
+        <div class="text-center p-5">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Загрузка...</span>
+          </div>
+          <p class="mt-3">Загрузка расписания...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Кнопки действий -->
+  <div class="action-buttons" style="position: fixed; bottom: 20px; right: 20px; z-index: 1000;">
+    <button class="btn btn-primary btn-floating" onclick="showAddModal()" title="Добавить занятие">
+      <i class="bi bi-plus-lg"></i>
+    </button>
+    <button class="btn btn-info btn-floating" onclick="showAutoFillModal()" title="Автозаполнение">
+      <i class="bi bi-magic"></i>
+    </button>
+    <button class="btn btn-success btn-floating" onclick="loadSchedule()" title="Обновить">
+      <i class="bi bi-arrow-clockwise"></i>
+    </button>
+  </div>
+
+  <!-- Кнопка автозаполнения пропусков -->
+  <div class="auto-fill-btn" id="autoFillButton" style="display: none;">
+    <button class="btn btn-warning btn-floating" onclick="fillGaps()" title="Заполнить пропуски">
+      <i class="bi bi-patch-check"></i>
+    </button>
+  </div>
+
+  <!-- Модальное окно добавления -->
+  <div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Добавить занятие</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="addForm">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Группа *</label>
+                <select class="form-select" id="addGroup" required>
+                  <option value="">Выберите группу</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Предмет *</label>
+                <select class="form-select" id="addSubject" required onchange="checkZeroLesson()">
+                  <option value="">Выберите предмет</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Преподаватель *</label>
+                <select class="form-select" id="addTeacher" required>
+                  <option value="">Выберите преподавателя</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Аудитория *</label>
+                <select class="form-select" id="addRoom" required>
+                  <option value="">Выберите аудиторию</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">День недели *</label>
+                <select class="form-select" id="addDay" required>
+                  <option value="">Выберите день</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Пара *</label>
+                <select class="form-select" id="addPair" required onchange="updateLessonOptions()">
+                  <option value="">Выберите пару</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Урок в паре *</label>
+                <select class="form-select" id="addLesson" required onchange="checkZeroLesson()">
+                  <option value="">Выберите урок</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="addIsCombined">
+                  <label class="form-check-label" for="addIsCombined">
+                    Совмещенное занятие (выделится красным)
+                  </label>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="addIsPractice">
+                  <label class="form-check-label" for="addIsPractice">
+                    Практическое занятие
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="alert alert-warning mt-3" id="zeroLessonWarning" style="display: none;">
+              <i class="bi bi-exclamation-triangle"></i>
+              <strong>Внимание:</strong> На понедельник и четверг 0 уроком могут быть только "Разговоры о важном"
+            </div>
+
+            <div class="alert alert-info mt-3" id="availabilityInfo" style="display: none;">
+              <i class="bi bi-info-circle"></i>
+              <div id="availabilityMessage"></div>
+            </div>
+          </form>
+          <div id="addMessage" class="mt-3"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="button" class="btn btn-primary" onclick="addLesson()">Добавить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно редактирования -->
+  <div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Редактировать занятие</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="editForm">
+            <input type="hidden" id="editLessonId">
+            <div class="mb-3">
+              <label class="form-label">Предмет</label>
+              <select class="form-select" id="editSubject">
+                <option value="">Выберите предмет</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Преподаватель</label>
+              <select class="form-select" id="editTeacher">
+                <option value="">Выберите преподавателя</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Аудитория</label>
+              <select class="form-select" id="editRoom">
+                <option value="">Выберите аудиторию</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="editIsCombined">
+                <label class="form-check-label" for="editIsCombined">
+                  Совмещенное занятие
+                </label>
+              </div>
+            </div>
+            <div class="alert alert-info">
+              <i class="bi bi-info-circle"></i>
+              Группа, день, пара и урок не могут быть изменены
+            </div>
+          </form>
+          <div id="editMessage" class="mt-3"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="button" class="btn btn-primary" onclick="saveEdit()">Сохранить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно автозаполнения -->
+  <div class="modal fade" id="autoFillModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Автоматическое заполнение расписания</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Тип заполнения:</label>
+            <select class="form-select" id="fillType">
+              <option value="full">Полное заполнение</option>
+              <option value="gaps_only">Только пропуски</option>
+              <option value="practice_only">Только практика</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Группы:</label>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="allGroups" checked onchange="toggleGroupSelection()">
+              <label class="form-check-label" for="allGroups">
+                Все группы
+              </label>
+            </div>
+
+            <div id="groupSelection" class="mt-2" style="max-height: 200px; overflow-y: auto;">
+              <!-- Группы будут загружены динамически -->
+            </div>
+          </div>
+
+          <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i>
+            <strong>Полное заполнение:</strong> Создает расписание на основе предметов групп<br>
+            <strong>Только пропуски:</strong> Заполняет пустые слоты в существующем расписании<br>
+            <strong>Только практика:</strong> Заполняет дни практики для групп 2-4 курсов
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="button" class="btn btn-primary" onclick="startAutoFill()">Запустить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Глобальные переменные
+    let currentSettings = {};
+    let allGroups = [];
+    let allTeachers = [];
+    let allSubjects = [];
+    let allRooms = [];
+    let currentSchedule = [];
+    let currentDay = 'Понедельник';
+    let currentWeek = 1;
+    let currentSemester = 1;
+    let selectedGroup = '';
+    let hasGaps = false;
+
+    // Конфигурация пар
+    const PAIR_CONFIG = {
+      'Понедельник': { pairs: [0, 1, 2, 3, 4, 5, 6], maxPairs: 7 },
+      'Вторник': { pairs: [1, 2, 3, 4, 5, 6], maxPairs: 6 },
+      'Среда': { pairs: [1, 2, 3, 4, 5, 6], maxPairs: 6 },
+      'Четверг': { pairs: [0, 1, 2, 3, 4, 5, 6], maxPairs: 7 },
+      'Пятница': { pairs: [1, 2, 3, 4, 5, 6], maxPairs: 6 },
+      'Суббота': { pairs: [1, 2, 3, 4], maxPairs: 4 }
+    };
+
+    const PAIR_TIMES = {
+      0: { name: 'Пара 0 (нулевой урок)', lessons: [0], time: '8:30-9:10' },
+      1: { name: 'Пара 1', lessons: [1, 2] },
+      2: { name: 'Пара 2', lessons: [3, 4] },
+      3: { name: 'Пара 3', lessons: [5, 6] },
+      4: { name: 'Пара 4', lessons: [7, 8] },
+      5: { name: 'Пара 5', lessons: [9, 10] },
+      6: { name: 'Пара 6', lessons: [11, 12] }
+    };
+
+    // Загрузка при старте
+    document.addEventListener('DOMContentLoaded', async function () {
+      await checkAuth();
+      await loadSettings();
+      await loadInitialData();
+      await loadSchedule();
+    });
+
+    // Проверка авторизации
+    async function checkAuth() {
+      try {
+        const response = await fetch('/api/user_info');
+        const data = await response.json();
+
+        if (!data.authenticated || data.role !== 'admin') {
+          window.location.href = '/login';
+          return false;
+        }
+        return true;
+      } catch (error) {
+        window.location.href = '/login';
+        return false;
+      }
+    }
+
+    // Загрузка настроек
+    async function loadSettings() {
+      try {
+        const response = await fetch('/api/settings/current');
+        if (response.ok) {
+          currentSettings = await response.json();
+          currentWeek = currentSettings.week || 1;
+          currentSemester = currentSettings.semester || 1;
+
+          document.getElementById('weekInput').value = currentWeek;
+          document.getElementById('semesterSelect').value = currentSemester;
+        }
+      } catch (error) {
+        console.error('Ошибка загрузки настроек:', error);
+      }
+    }
+
+    // Загрузка начальных данных
+    async function loadInitialData() {
+      try {
+        // Загружаем группы
+        const groupsResponse = await fetch('/api/data/groups');
+        if (groupsResponse.ok) {
+          allGroups = await groupsResponse.json();
+          updateGroupFilters();
+          updateGroupSelection();
+        }
+
+        // Загружаем преподавателей
+        const teachersResponse = await fetch('/api/data/teachers');
+        if (teachersResponse.ok) {
+          allTeachers = await teachersResponse.json();
+          updateTeacherSelect();
+        }
+
+        // Загружаем предметы
+        const subjectsResponse = await fetch('/api/data/subjects');
+        if (subjectsResponse.ok) {
+          allSubjects = await subjectsResponse.json();
+          updateSubjectSelect();
+        }
+
+        // Загружаем аудитории
+        const roomsResponse = await fetch('/api/data/rooms');
+        if (roomsResponse.ok) {
+          allRooms = await roomsResponse.json();
+          updateRoomSelect();
+        }
+
+      } catch (error) {
+        console.error('Ошибка загрузки данных:', error);
+        showMessage('scheduleContainer', 'Ошибка загрузки данных', 'danger');
+      }
+    }
+
+    // Обновление фильтров групп
+    function updateGroupFilters() {
+      const groupFilter = document.getElementById('groupFilter');
+      const addGroupSelect = document.getElementById('addGroup');
+
+      groupFilter.innerHTML = '<option value="">Все группы</option>';
+      addGroupSelect.innerHTML = '<option value="">Выберите группу</option>';
+
+      // Сортируем группы по курсам
+      const sortedGroups = [...allGroups].sort((a, b) => {
+        if (a.course !== b.course) return a.course - b.course;
+        return a.name.localeCompare(b.name);
+      });
+
+      sortedGroups.forEach(group => {
+        // Для фильтра
+        const option1 = document.createElement('option');
+        option1.value = group.name;
+        let label = `${group.name} (${group.course} курс)`;
+        if (group.has_practice && group.practice_day) {
+          label += ` - практика: ${group.practice_day}`;
+        }
+        option1.textContent = label;
+        groupFilter.appendChild(option1);
+
+        // Для формы добавления
+        const option2 = document.createElement('option');
+        option2.value = group.name;
+        option2.textContent = `${group.name} (${group.course} курс)`;
+        addGroupSelect.appendChild(option2);
+      });
+    }
+
+    // Обновление выбора групп для автозаполнения
+    function updateGroupSelection() {
+      const groupSelection = document.getElementById('groupSelection');
+      groupSelection.innerHTML = '';
+
+      const sortedGroups = [...allGroups].sort((a, b) => {
+        if (a.course !== b.course) return a.course - b.course;
+        return a.name.localeCompare(b.name);
+      });
+
+      sortedGroups.forEach(group => {
+        const div = document.createElement('div');
+        div.className = 'form-check';
+        div.innerHTML = `
+          <input class="form-check-input group-checkbox" type="checkbox" value="${group.id}" id="group-${group.id}" checked>
+          <label class="form-check-label" for="group-${group.id}">
+            ${group.name} (${group.course} курс)
+            ${group.has_practice && group.practice_day ? `<small class="text-muted"> - практика: ${group.practice_day}</small>` : ''}
+          </label>
+        `;
+        groupSelection.appendChild(div);
+      });
+    }
+
+    function toggleGroupSelection() {
+      const allGroupsCheckbox = document.getElementById('allGroups');
+      const groupCheckboxes = document.querySelectorAll('.group-checkbox');
+
+      groupCheckboxes.forEach(cb => {
+        cb.checked = allGroupsCheckbox.checked;
+        cb.disabled = allGroupsCheckbox.checked;
+      });
+    }
+
+    function updateTeacherSelect() {
+      const addTeacher = document.getElementById('addTeacher');
+      const editTeacher = document.getElementById('editTeacher');
+
+      addTeacher.innerHTML = '<option value="">Выберите преподавателя</option>';
+      editTeacher.innerHTML = '<option value="">Выберите преподавателя</option>';
+
+      allTeachers.sort((a, b) => a.name.localeCompare(b.name)).forEach(teacher => {
+        const option1 = document.createElement('option');
+        option1.value = teacher.name;
+        option1.textContent = teacher.name;
+        addTeacher.appendChild(option1);
+
+        const option2 = document.createElement('option');
+        option2.value = teacher.name;
+        option2.textContent = teacher.name;
+        editTeacher.appendChild(option2);
+      });
+    }
+
+    function updateSubjectSelect() {
+      const addSubject = document.getElementById('addSubject');
+      const editSubject = document.getElementById('editSubject');
+
+      addSubject.innerHTML = '<option value="">Выберите предмет</option>';
+      editSubject.innerHTML = '<option value="">Выберите предмет</option>';
+
+      allSubjects.sort((a, b) => a.name.localeCompare(b.name)).forEach(subject => {
+        const option1 = document.createElement('option');
+        option1.value = subject.name;
+        option1.textContent = subject.name;
+        addSubject.appendChild(option1);
+
+        const option2 = document.createElement('option');
+        option2.value = subject.name;
+        option2.textContent = subject.name;
+        editSubject.appendChild(option2);
+      });
+    }
+
+    function updateRoomSelect() {
+      const addRoom = document.getElementById('addRoom');
+      const editRoom = document.getElementById('editRoom');
+
+      addRoom.innerHTML = '<option value="">Выберите аудиторию</option>';
+      editRoom.innerHTML = '<option value="">Выберите аудиторию</option>';
+
+      allRooms.sort((a, b) => {
+        const aIsNum = /^\d+$/.test(a.name);
+        const bIsNum = /^\d+$/.test(b.name);
+        if (aIsNum && !bIsNum) return -1;
+        if (!aIsNum && bIsNum) return 1;
+        if (aIsNum && bIsNum) return parseInt(a.name) - parseInt(b.name);
+        return a.name.localeCompare(b.name);
+      }).forEach(room => {
+        const option1 = document.createElement('option');
+        option1.value = room.name;
+        option1.textContent = room.name;
+        addRoom.appendChild(option1);
+
+        const option2 = document.createElement('option');
+        option2.value = room.name;
+        option2.textContent = room.name;
+        editRoom.appendChild(option2);
+      });
+    }
+
+    // Загрузка расписания
+    async function loadSchedule() {
+      currentDay = document.getElementById('daySelect').value;
+      currentWeek = parseInt(document.getElementById('weekInput').value) || 1;
+      currentSemester = parseInt(document.getElementById('semesterSelect').value) || 1;
+      selectedGroup = document.getElementById('groupFilter').value;
+
+      // Обновляем информацию в заголовке
+      document.getElementById('currentInfo').innerHTML = `
+                <i class="bi bi-calendar-week"></i> ${currentDay}, неделя ${currentWeek}
+            `;
+
+      // Показываем загрузку
+      document.getElementById('scheduleContainer').innerHTML = `
+                <div class="text-center p-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                    <p class="mt-3">Загрузка расписания...</p>
+                </div>
+            `;
+
+      try {
+        const response = await fetch(
+          `/api/schedule/current?day=${encodeURIComponent(currentDay)}&week=${currentWeek}&semester=${currentSemester}`
+        );
+
+        if (!response.ok) {
+          throw new Error('Ошибка загрузки расписания');
+        }
+
+        currentSchedule = await response.json();
+        renderSchedule();
+
+        // Проверяем пропуски
+        await checkGaps();
+
+      } catch (error) {
+        console.error('Ошибка:', error);
+        document.getElementById('scheduleContainer').innerHTML = `
+                    <div class="alert alert-danger m-4">
+                        <i class="bi bi-exclamation-triangle"></i> Ошибка загрузки расписания: ${error.message}
+                    </div>
+                `;
+      }
+    }
+
+    // Отображение расписания
+    function renderSchedule() {
+      // Фильтруем по выбранной группе
+      let filteredSchedule = currentSchedule;
+      if (selectedGroup) {
+        filteredSchedule = currentSchedule.filter(lesson => lesson.group === selectedGroup);
+      }
+
+      // Группируем по группам и парам
+      const groupedByGroup = {};
+      filteredSchedule.forEach(lesson => {
+        if (!groupedByGroup[lesson.group]) {
+          groupedByGroup[lesson.group] = {};
+        }
+        if (!groupedByGroup[lesson.group][lesson.pair]) {
+          groupedByGroup[lesson.group][lesson.pair] = [];
+        }
+        groupedByGroup[lesson.group][lesson.pair].push(lesson);
+      });
+
+      // Получаем список всех групп
+      let groups = Object.keys(groupedByGroup);
+      if (!selectedGroup) {
+        // Если не выбрана конкретная группа, показываем все группы
+        groups = [...new Set(currentSchedule.map(lesson => lesson.group))].sort();
+      }
+
+      // Получаем доступные пары для текущего дня
+      const availablePairs = PAIR_CONFIG[currentDay]?.pairs || [];
+
+      // Если нет данных, показываем сообщение
+      if (groups.length === 0) {
+        document.getElementById('scheduleContainer').innerHTML = `
+                    <div class="text-center p-5">
+                        <i class="bi bi-calendar-x" style="font-size: 3rem; color: #6c757d;"></i>
+                        <h4 class="mt-3">Нет занятий</h4>
+                        <p class="text-muted">На ${currentDay} нет занятий для выбранных групп</p>
+                        <button class="btn btn-primary mt-3" onclick="showAddModal()">
+                            <i class="bi bi-plus-circle"></i> Добавить первое занятие
+                        </button>
+                    </div>
+                `;
+        return;
+      }
+
+      // Создаем таблицу
+      let html = `
+                <div class="table-responsive">
+                    <table class="table table-bordered mb-0">
+                        <thead>
+                            <tr>
+                                <th class="pair-header" style="width: 120px;">Пара / Группа</th>
+            `;
+
+      // Заголовки групп
+      groups.forEach(group => {
+        html += `<th class="pair-header">${group}</th>`;
+      });
+
+      html += `</tr></thead><tbody>`;
+
+      // Строки с парами
+      availablePairs.forEach(pairNum => {
+        const pairInfo = PAIR_TIMES[pairNum];
+        let pairTime = '';
+
+        if (pairNum === 0) {
+          pairTime = '8:30-9:10';
+        } else if (pairNum === 1) {
+          if (currentDay === 'Понедельник' || currentDay === 'Четверг') {
+            pairTime = '9:15-9:55, 10:00-10:40';
+          } else if (currentDay === 'Суббота') {
+            pairTime = '8:00-8:40, 8:45-9:25';
+          } else {
+            pairTime = '8:30-9:10, 9:15-9:55';
+          }
+        } else if (pairNum === 2) {
+          if (currentDay === 'Понедельник' || currentDay === 'Четверг') {
+            pairTime = '11:20-12:00, 12:05-12:45';
+          } else if (currentDay === 'Суббота') {
+            pairTime = '9:30-10:10, 10:15-10:55';
+          } else {
+            pairTime = '10:35-11:15, 11:20-12:00';
+          }
+        } else if (pairNum === 3) {
+          if (currentDay === 'Понедельник' || currentDay === 'Четверг') {
+            pairTime = '13:25-14:05, 14:10-14:50';
+          } else if (currentDay === 'Суббота') {
+            pairTime = '11:00-11:40, 11:45-12:25';
+          } else {
+            pairTime = '12:40-13:20, 13:25-14:05';
+          }
+        } else if (pairNum === 4) {
+          if (currentDay === 'Понедельник' || currentDay === 'Четверг') {
+            pairTime = '15:00-15:40, 15:45-16:25';
+          } else if (currentDay === 'Суббота') {
+            pairTime = '12:30-13:10, 13:15-13:55';
+          } else {
+            pairTime = '14:15-14:55, 15:00-15:40';
+          }
+        } else if (pairNum === 5) {
+          if (currentDay === 'Понедельник' || currentDay === 'Четверг') {
+            pairTime = '16:30-17:10, 17:15-17:55';
+          } else {
+            pairTime = '15:45-16:25, 16:30-17:10';
+          }
+        } else if (pairNum === 6) {
+          if (currentDay === 'Понедельник' || currentDay === 'Четверг') {
+            pairTime = '18:00-18:40, 18:45-19:25';
+          } else {
+            pairTime = '17:15-17:55, 18:00-18:40';
+          }
+        }
+
+        html += `
+                    <tr>
+                        <td class="pair-header">
+                            <strong>${pairInfo.name}</strong>
+                            <div class="small text-muted">${pairTime}</div>
+                        </td>
+                `;
+
+        // Ячейки для каждой группы
+        groups.forEach(group => {
+          const lessons = groupedByGroup[group]?.[pairNum] || [];
+          html += `<td class="lesson-cell p-2" id="cell-${group}-${pairNum}">`;
+
+          if (lessons.length === 0) {
+            // Пустая ячейка - потенциальный пропуск
+            html += `
+                            <div class="empty-slot text-center text-muted py-4" 
+                                 onclick="fillEmptySlot('${group}', ${pairNum})"
+                                 title="Кликните для заполнения пропуска">
+                                <i class="bi bi-plus-circle"></i><br>
+                                <small>Добавить занятие</small>
+                            </div>
+                        `;
+          } else {
+            lessons.forEach(lesson => {
+              let lessonClass = '';
+              if (lesson.lesson_number === 0) {
+                lessonClass = 'zero-lesson';
+              } else if (lesson.is_combined) {
+                lessonClass = 'combined-lesson';
+              } else if (lesson.is_changed) {
+                lessonClass = 'changed-lesson';
+              } else {
+                lessonClass = 'main-lesson';
+              }
+
+              // Проверяем, является ли это практикой
+              const groupInfo = allGroups.find(g => g.name === group);
+              if (groupInfo && groupInfo.has_practice && groupInfo.practice_day === currentDay) {
+                lessonClass = 'practice-lesson';
+              }
+
+              html += `
+                                <div class="lesson-card ${lessonClass}" id="lesson-${lesson.id}">
+                                    <div class="lesson-actions">
+                                        <button class="btn btn-sm btn-warning me-1" onclick="showEditModal(${lesson.id})" title="Редактировать">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" onclick="deleteLesson(${lesson.id})" title="Удалить">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                    <div class="fw-bold">${lesson.subject}</div>
+                                    <div class="small">${lesson.teacher}</div>
+                                    <div class="small text-muted">ауд. ${lesson.room}</div>
+                                    <div class="small">урок ${lesson.lesson_number}</div>
+                                    ${lesson.is_changed ? '<span class="badge bg-warning badge-sm">изм</span>' : ''}
+                                    ${lesson.is_combined ? '<span class="badge badge-combined badge-sm">совм</span>' : ''}
+                                    ${(groupInfo && groupInfo.has_practice && groupInfo.practice_day === currentDay) ?
+                  '<span class="badge badge-practice badge-sm">практ</span>' : ''}
+                                </div>
+                            `;
+            });
+          }
+
+          html += `</td>`;
+        });
+
+        html += `</tr>`;
+      });
+
+      html += `</tbody></table></div>`;
+
+      document.getElementById('scheduleContainer').innerHTML = html;
+    }
+
+    // Заполнить пустой слот
+    async function fillEmptySlot(groupName, pairNum) {
+      const group = allGroups.find(g => g.name === groupName);
+      if (!group) return;
+
+      // Заполняем форму добавления
+      document.getElementById('addGroup').value = groupName;
+      document.getElementById('addDay').value = currentDay;
+      document.getElementById('addPair').value = pairNum;
+
+      // Обновляем опции уроков
+      updateLessonOptions();
+
+      // Выбираем первый урок
+      const lessonSelect = document.getElementById('addLesson');
+      if (lessonSelect.options.length > 1) {
+        lessonSelect.selectedIndex = 1;
+      }
+
+      // Показываем модальное окно
+      showAddModal();
+    }
+
+    // Фильтрация расписания
+    function filterSchedule() {
+      selectedGroup = document.getElementById('groupFilter').value;
+      renderSchedule();
+    }
+
+    // Проверка пропусков
+    async function checkGaps() {
+      try {
+        const gapsAlert = document.getElementById('gapsAlert');
+        const autoFillButton = document.getElementById('autoFillButton');
+
+        if (selectedGroup) {
+          // Проверяем пропуски для выбранной группы
+          const group = allGroups.find(g => g.name === selectedGroup);
+          if (group) {
+            const response = await fetch(`/api/schedule/gaps/${group.id}?week=${currentWeek}&semester=${currentSemester}`);
+            if (response.ok) {
+              const data = await response.json();
+              if (data.success && data.total_gaps > 0) {
+                hasGaps = true;
+                gapsAlert.style.display = 'block';
+                autoFillButton.style.display = 'block';
+                document.getElementById('gapsMessage').textContent =
+                  `У группы ${selectedGroup} обнаружено ${data.total_gaps} пропусков в расписании`;
+              } else {
+                hasGaps = false;
+                gapsAlert.style.display = 'none';
+                autoFillButton.style.display = 'none';
+              }
+            }
+          }
+        } else {
+          // Для всех групп просто скрываем алерт
+          hasGaps = false;
+          gapsAlert.style.display = 'none';
+          autoFillButton.style.display = 'none';
+        }
+      } catch (error) {
+        console.error('Ошибка проверки пропусков:', error);
+      }
+    }
+
+    // Заполнить пропуски
+    async function fillGaps() {
+      if (!selectedGroup) {
+        alert('Выберите группу для заполнения пропусков');
+        return;
+      }
+
+      const group = allGroups.find(g => g.name === selectedGroup);
+      if (!group) return;
+
+      if (confirm(`Заполнить пропуски в расписании для группы ${selectedGroup}?`)) {
+        try {
+          const response = await fetch('/api/schedule/auto_fill', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              week: currentWeek,
+              semester: currentSemester,
+              group_ids: [group.id],
+              type: 'gaps_only'
+            })
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            alert('Пропуски успешно заполнены');
+            loadSchedule();
+          } else {
+            alert('Ошибка: ' + result.message);
+          }
+        } catch (error) {
+          alert('Ошибка сети: ' + error.message);
+        }
+      }
+    }
+
+    // Показать модальное окно добавления
+    function showAddModal() {
+      // Сбрасываем форму
+      document.getElementById('addForm').reset();
+      document.getElementById('addMessage').innerHTML = '';
+      document.getElementById('zeroLessonWarning').style.display = 'none';
+      document.getElementById('availabilityInfo').style.display = 'none';
+
+      // Заполняем день недели
+      const daySelect = document.getElementById('addDay');
+      daySelect.innerHTML = '<option value="">Выберите день</option>';
+      ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'].forEach(day => {
+        const option = document.createElement('option');
+        option.value = day;
+        option.textContent = day;
+        option.selected = (day === currentDay);
+        daySelect.appendChild(option);
+      });
+
+      // Обновляем доступные пары
+      updateAddPairOptions();
+
+      // Показываем модальное окно
+      const modal = new bootstrap.Modal(document.getElementById('addModal'));
+      modal.show();
+    }
+
+    // Обновление опций пар в форме добавления
+    function updateAddPairOptions() {
+      const day = document.getElementById('addDay').value || currentDay;
+      const pairSelect = document.getElementById('addPair');
+
+      pairSelect.innerHTML = '<option value="">Выберите пару</option>';
+
+      const availablePairs = PAIR_CONFIG[day]?.pairs || [];
+
+      availablePairs.forEach(pairNum => {
+        const option = document.createElement('option');
+        option.value = pairNum;
+        option.textContent = PAIR_TIMES[pairNum]?.name || `Пара ${pairNum}`;
+        pairSelect.appendChild(option);
+      });
+
+      // Сбрасываем уроки
+      document.getElementById('addLesson').innerHTML = '<option value="">Выберите урок</option>';
+    }
+
+    // Обновление опций уроков
+    function updateLessonOptions() {
+      const pairNum = parseInt(document.getElementById('addPair').value);
+      const lessonSelect = document.getElementById('addLesson');
+
+      lessonSelect.innerHTML = '<option value="">Выберите урок</option>';
+
+      if (isNaN(pairNum)) return;
+
+      const lessons = PAIR_TIMES[pairNum]?.lessons || [];
+
+      lessons.forEach(lessonNum => {
+        const option = document.createElement('option');
+        option.value = lessonNum;
+        option.textContent = `Урок ${lessonNum}`;
+        lessonSelect.appendChild(option);
+      });
+
+      // Проверяем нулевой урок и доступность
+      checkZeroLesson();
+      checkAvailability();
+    }
+
+    // Проверка нулевого урока
+    function checkZeroLesson() {
+      const day = document.getElementById('addDay').value || currentDay;
+      const lessonNum = parseInt(document.getElementById('addLesson').value);
+      const subject = document.getElementById('addSubject').value;
+      const warning = document.getElementById('zeroLessonWarning');
+
+      if ((day === 'Понедельник' || day === 'Четверг') && lessonNum === 0 && subject !== 'Разговоры о важном') {
+        warning.style.display = 'block';
+
+        // Автоматически выбираем "Разговоры о важном"
+        const subjectSelect = document.getElementById('addSubject');
+        for (let i = 0; i < subjectSelect.options.length; i++) {
+          if (subjectSelect.options[i].value === 'Разговоры о важном') {
+            subjectSelect.selectedIndex = i;
+            break;
+          }
+        }
+      } else {
+        warning.style.display = 'none';
+      }
+    }
+
+    // Проверка доступности
+    async function checkAvailability() {
+      const day = document.getElementById('addDay').value || currentDay;
+      const lessonNum = parseInt(document.getElementById('addLesson').value);
+
+      if (!day || isNaN(lessonNum)) return;
+
+      try {
+        const response = await fetch(
+          `/api/schedule/check_availability?day=${encodeURIComponent(day)}&lesson_number=${lessonNum}&week=${currentWeek}&semester=${currentSemester}`
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            const info = document.getElementById('availabilityInfo');
+            const message = document.getElementById('availabilityMessage');
+
+            info.style.display = 'block';
+            message.innerHTML = `
+              Свободных аудиторий: ${data.free_rooms.length}<br>
+              Свободных преподавателей: ${data.free_teachers.length}
+            `;
+          }
+        }
+      } catch (error) {
+        console.error('Ошибка проверки доступности:', error);
+      }
+    }
+
+    // Добавление занятия
+    async function addLesson() {
+      const group = document.getElementById('addGroup').value;
+      const subject = document.getElementById('addSubject').value;
+      const teacher = document.getElementById('addTeacher').value;
+      const room = document.getElementById('addRoom').value;
+      const day = document.getElementById('addDay').value;
+      const pairNum = parseInt(document.getElementById('addPair').value);
+      const lessonNum = parseInt(document.getElementById('addLesson').value);
+      const isCombined = document.getElementById('addIsCombined').checked;
+      const isPractice = document.getElementById('addIsPractice').checked;
+
+      // Валидация
+      if (!group || !subject || !teacher || !room || !day || isNaN(pairNum) || isNaN(lessonNum)) {
+        showMessage('addMessage', 'Заполните все обязательные поля', 'danger');
+        return;
+      }
+
+      // Проверка нулевого урока
+      if ((day === 'Понедельник' || day === 'Четверг') && lessonNum === 0 && subject !== 'Разговоры о важном') {
+        showMessage('addMessage', 'На 0 урок можно поставить только "Разговоры о важном"', 'danger');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/schedule/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            is_main: false,
+            group: group,
+            subject: subject,
+            teacher: teacher,
+            room: room,
+            day: day,
+            lesson_number: lessonNum,
+            week: currentWeek,
+            semester: currentSemester,
+            is_combined: isCombined,
+            is_practice: isPractice
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showMessage('addMessage', 'Занятие успешно добавлено', 'success');
+
+          // Закрываем модальное окно через 1.5 секунды
+          setTimeout(() => {
+            bootstrap.Modal.getInstance(document.getElementById('addModal')).hide();
+            loadSchedule();
+          }, 1500);
+        } else {
+          showMessage('addMessage', result.message || 'Ошибка добавления', 'danger');
+        }
+
+      } catch (error) {
+        showMessage('addMessage', `Ошибка сети: ${error.message}`, 'danger');
+      }
+    }
+
+    // Показать модальное окно автозаполнения
+    function showAutoFillModal() {
+      const modal = new bootstrap.Modal(document.getElementById('autoFillModal'));
+      modal.show();
+    }
+
+    // Запуск автозаполнения
+    async function startAutoFill() {
+      const fillType = document.getElementById('fillType').value;
+      const allGroupsChecked = document.getElementById('allGroups').checked;
+
+      let groupIds = [];
+      if (!allGroupsChecked) {
+        const selectedGroups = document.querySelectorAll('.group-checkbox:checked');
+        groupIds = Array.from(selectedGroups).map(cb => parseInt(cb.value));
+      }
+
+      if (groupIds.length === 0 && !allGroupsChecked) {
+        alert('Выберите хотя бы одну группу');
+        return;
+      }
+
+      if (confirm(`Запустить автозаполнение расписания (тип: ${fillType})?`)) {
+        try {
+          const response = await fetch('/api/schedule/auto_fill', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              week: currentWeek,
+              semester: currentSemester,
+              group_ids: groupIds,
+              type: fillType
+            })
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            alert('Автозаполнение завершено успешно');
+            bootstrap.Modal.getInstance(document.getElementById('autoFillModal')).hide();
+            loadSchedule();
+          } else {
+            alert('Ошибка: ' + result.message);
+          }
+        } catch (error) {
+          alert('Ошибка сети: ' + error.message);
+        }
+      }
+    }
+
+    // Показать модальное окно редактирования
+    async function showEditModal(lessonId) {
+      try {
+        // Находим занятие в текущем расписании
+        const lesson = currentSchedule.find(l => l.id === lessonId);
+
+        if (!lesson) {
+          alert('Занятие не найдено');
+          return;
+        }
+
+        // Заполняем форму
+        document.getElementById('editLessonId').value = lessonId;
+        document.getElementById('editSubject').value = lesson.subject;
+        document.getElementById('editTeacher').value = lesson.teacher;
+        document.getElementById('editRoom').value = lesson.room;
+        document.getElementById('editIsCombined').checked = lesson.is_combined || false;
+        document.getElementById('editMessage').innerHTML = '';
+
+        // Показываем модальное окно
+        const modal = new bootstrap.Modal(document.getElementById('editModal'));
+        modal.show();
+
+      } catch (error) {
+        alert(`Ошибка загрузки данных: ${error.message}`);
+      }
+    }
+
+    // Сохранение изменений
+    async function saveEdit() {
+      const lessonId = document.getElementById('editLessonId').value;
+      const subject = document.getElementById('editSubject').value;
+      const teacher = document.getElementById('editTeacher').value;
+      const room = document.getElementById('editRoom').value;
+      const isCombined = document.getElementById('editIsCombined').checked;
+
+      if (!subject || !teacher || !room) {
+        showMessage('editMessage', 'Заполните все поля', 'danger');
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/schedule/update/${lessonId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subject: subject,
+            teacher: teacher,
+            room: room,
+            is_combined: isCombined
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showMessage('editMessage', 'Изменения сохранены', 'success');
+
+          // Обновляем локальные данные
+          const lessonIndex = currentSchedule.findIndex(l => l.id === parseInt(lessonId));
+          if (lessonIndex !== -1) {
+            currentSchedule[lessonIndex].subject = subject;
+            currentSchedule[lessonIndex].teacher = teacher;
+            currentSchedule[lessonIndex].room = room;
+            currentSchedule[lessonIndex].is_combined = isCombined;
+            currentSchedule[lessonIndex].is_changed = true;
+          }
+
+          // Перерисовываем таблицу
+          renderSchedule();
+
+          // Закрываем модальное окно через 1.5 секунды
+          setTimeout(() => {
+            bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
+          }, 1500);
+        } else {
+          showMessage('editMessage', result.message || 'Ошибка сохранения', 'danger');
+        }
+
+      } catch (error) {
+        showMessage('editMessage', `Ошибка сети: ${error.message}`, 'danger');
+      }
+    }
+
+    // Удаление занятия
+    async function deleteLesson(lessonId) {
+      if (!confirm('Вы уверены, что хотите удалить это занятие?')) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/schedule/delete/${lessonId}`, {
+          method: 'DELETE'
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          alert('Занятие удалено');
+          loadSchedule();
+        } else {
+          alert('Ошибка: ' + result.message);
+        }
+      } catch (error) {
+        alert('Ошибка сети: ' + error.message);
+      }
+    }
+
+    // Очистка дня
+    async function clearDay() {
+      if (!confirm(`Очистить все занятия на ${currentDay}?`)) {
+        return;
+      }
+
+      // Находим все занятия на текущий день
+      const dayLessons = currentSchedule.filter(lesson => lesson.day === currentDay);
+
+      if (dayLessons.length === 0) {
+        alert('Нет занятий для очистки');
+        return;
+      }
+
+      try {
+        // Удаляем каждое занятие
+        let deletedCount = 0;
+
+        for (const lesson of dayLessons) {
+          const response = await fetch(`/api/schedule/delete/${lesson.id}`, {
+            method: 'DELETE'
+          });
+
+          if (response.ok) {
+            deletedCount++;
+          }
+        }
+
+        alert(`Удалено ${deletedCount} занятий`);
+        loadSchedule();
+
+      } catch (error) {
+        alert('Ошибка: ' + error.message);
+      }
+    }
+
+    // Вспомогательная функция для отображения сообщений
+    function showMessage(elementId, message, type) {
+      const element = document.getElementById(elementId);
+      element.innerHTML = `
+                <div class="alert alert-${type} alert-dismissible fade show">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+    }
+
+    // Добавляем обработчики событий
+    document.getElementById('addDay').addEventListener('change', function () {
+      updateAddPairOptions();
+      updateLessonOptions();
+    });
+
+    document.getElementById('addPair').addEventListener('change', updateLessonOptions);
+    document.getElementById('addLesson').addEventListener('change', function () {
+      checkZeroLesson();
+      checkAvailability();
+    });
+    document.getElementById('addSubject').addEventListener('change', checkZeroLesson);
+  </script>
+</body>
+
+</html>
