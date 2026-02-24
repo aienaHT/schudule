@@ -66,6 +66,22 @@
         opacity: 1;
       }
     }
+
+    .subjects-management-card {
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .subjects-management-card:hover {
+      transform: scale(1.02);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .manage-items-section {
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #dee2e6;
+    }
   </style>
 </head>
 
@@ -92,6 +108,12 @@
         <button class="btn btn-primary" onclick="showAddGroupModal()">
           <i class="bi bi-plus-circle"></i> Добавить группу
         </button>
+        <button class="btn btn-info ms-2" onclick="showManageSubjectsModal()">
+          <i class="bi bi-book"></i> Управление предметами
+        </button>
+        <button class="btn btn-info ms-2" onclick="showManageTeachersModal()">
+          <i class="bi bi-person-badge"></i> Управление преподавателями
+        </button>
         <button class="btn autofill-btn ms-2" onclick="showAutofillModal()">
           <i class="bi bi-magic"></i> Автозаполнение
         </button>
@@ -109,6 +131,34 @@
       <div class="card-body">
         <div class="row" id="autofillStatsContent">
           <!-- Статистика будет загружена здесь -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Секция управления предметами и преподавателями -->
+    <div class="row mb-4 manage-items-section">
+      <div class="col-md-6 mb-3">
+        <div class="card subjects-management-card h-100" onclick="showManageSubjectsModal()">
+          <div class="card-body text-center">
+            <i class="bi bi-book" style="font-size: 3rem; color: #0d6efd;"></i>
+            <h4 class="mt-3">Управление предметами</h4>
+            <p class="text-muted">Добавление, редактирование и удаление учебных предметов</p>
+            <button class="btn btn-outline-primary">
+              <i class="bi bi-gear"></i> Управлять предметами
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 mb-3">
+        <div class="card subjects-management-card h-100" onclick="showManageTeachersModal()">
+          <div class="card-body text-center">
+            <i class="bi bi-person-badge" style="font-size: 3rem; color: #198754;"></i>
+            <h4 class="mt-3">Управление преподавателями</h4>
+            <p class="text-muted">Добавление, редактирование и удаление преподавателей</p>
+            <button class="btn btn-outline-success">
+              <i class="bi bi-gear"></i> Управлять преподавателями
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -190,33 +240,50 @@
           <div class="card mb-4">
             <div class="card-body">
               <h6>Добавить предмет группе</h6>
+              <div class="row g-2 mb-3">
+                <div class="col-md-6">
+                  <div class="input-group">
+                    <select class="form-select" id="subjectSelect" required>
+                      <option value="">Выберите предмет</option>
+                    </select>
+                    <button class="btn btn-outline-secondary" type="button" onclick="showAddSubjectModal()">
+                      <i class="bi bi-plus"></i>
+                    </button>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="input-group">
+                    <select class="form-select" id="teacherSelect">
+                      <option value="">Выберите преподавателя</option>
+                    </select>
+                    <button class="btn btn-outline-secondary" type="button" onclick="showAddTeacherModal()">
+                      <i class="bi bi-plus"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <form id="addSubjectForm" class="row g-3">
                 <div class="col-md-4">
-                  <select class="form-select" id="subjectSelect" required>
-                    <option value="">Выберите предмет</option>
-                  </select>
-                </div>
-                <div class="col-md-3">
-                  <select class="form-select" id="teacherSelect">
-                    <option value="">Выберите преподавателя</option>
-                  </select>
-                </div>
-                <div class="col-md-2">
                   <input type="number" class="form-control" id="hoursPerWeek" placeholder="Час/нед" min="0" max="40"
                     value="0" required>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                   <button type="submit" class="btn btn-success w-100">
-                    <i class="bi bi-plus"></i> Добавить
+                    <i class="bi bi-plus"></i> Добавить предмет
                   </button>
                 </div>
-                <div class="col-md-6 mt-2">
-                  <label class="form-label small">Часы за 1 семестр:</label>
-                  <input type="number" class="form-control" id="totalHoursSemester1" placeholder="Всего часов" min="0">
-                </div>
-                <div class="col-md-6 mt-2">
-                  <label class="form-label small">Часы за 2 семестр:</label>
-                  <input type="number" class="form-control" id="totalHoursSemester2" placeholder="Всего часов" min="0">
+                <div class="col-md-12 mt-2">
+                  <div class="row">
+                    <div class="col-md-6">
+                      <label class="form-label small">Часы за 1 семестр:</label>
+                      <input type="number" class="form-control" id="totalHoursSemester1" placeholder="Всего часов" min="0">
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label small">Часы за 2 семестр:</label>
+                      <input type="number" class="form-control" id="totalHoursSemester2" placeholder="Всего часов" min="0">
+                    </div>
+                  </div>
                 </div>
               </form>
             </div>
@@ -305,6 +372,179 @@
             Удалить практику
           </button>
           <button type="button" class="btn btn-primary" onclick="savePractice()">Сохранить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно управления предметами -->
+  <div class="modal fade" id="subjectsManagementModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-book"></i> Управление предметами</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6>Список всех предметов</h6>
+            <button class="btn btn-sm btn-success" onclick="showAddNewSubjectModal()">
+              <i class="bi bi-plus-circle"></i> Добавить предмет
+            </button>
+          </div>
+
+          <div id="subjectsListContainer">
+            <div class="text-center p-4">
+              <div class="spinner-border" role="status"></div>
+              <p class="mt-2">Загрузка предметов...</p>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно добавления нового предмета -->
+  <div class="modal fade" id="addNewSubjectModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Добавить новый предмет</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="addNewSubjectForm">
+            <div class="mb-3">
+              <label class="form-label">Название предмета *</label>
+              <input type="text" class="form-control" id="newSubjectName" required placeholder="Например: Математика, Физика">
+            </div>
+          </form>
+          <div id="addNewSubjectMessage" class="mt-3"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="button" class="btn btn-primary" onclick="addNewSubject()">Добавить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно редактирования предмета -->
+  <div class="modal fade" id="editSubjectModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Редактировать предмет</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="editSubjectId">
+          <form id="editSubjectForm">
+            <div class="mb-3">
+              <label class="form-label">Название предмета *</label>
+              <input type="text" class="form-control" id="editSubjectName" required>
+            </div>
+          </form>
+          <div id="editSubjectMessage" class="mt-3"></div>
+          <div id="subjectUsageInfo" class="alert alert-info mt-3" style="display: none;">
+            <i class="bi bi-info-circle"></i> Этот предмет используется в расписании
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="button" class="btn btn-danger" onclick="deleteSubject()" id="deleteSubjectBtn">Удалить</button>
+          <button type="button" class="btn btn-primary" onclick="updateSubject()">Сохранить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно управления преподавателями -->
+  <div class="modal fade" id="teachersManagementModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-person-badge"></i> Управление преподавателями</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6>Список всех преподавателей</h6>
+            <button class="btn btn-sm btn-success" onclick="showAddNewTeacherModal()">
+              <i class="bi bi-plus-circle"></i> Добавить преподавателя
+            </button>
+          </div>
+
+          <div id="teachersListContainer">
+            <div class="text-center p-4">
+              <div class="spinner-border" role="status"></div>
+              <p class="mt-2">Загрузка преподавателей...</p>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно добавления нового преподавателя -->
+  <div class="modal fade" id="addNewTeacherModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Добавить нового преподавателя</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="addNewTeacherForm">
+            <div class="mb-3">
+              <label class="form-label">Имя преподавателя *</label>
+              <input type="text" class="form-control" id="newTeacherName" required placeholder="Например: Иванов И.И.">
+            </div>
+          </form>
+          <div id="addNewTeacherMessage" class="mt-3"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="button" class="btn btn-primary" onclick="addNewTeacher()">Добавить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно редактирования преподавателя -->
+  <div class="modal fade" id="editTeacherModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Редактировать преподавателя</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="editTeacherId">
+          <form id="editTeacherForm">
+            <div class="mb-3">
+              <label class="form-label">Имя преподавателя *</label>
+              <input type="text" class="form-control" id="editTeacherName" required>
+            </div>
+          </form>
+          <div id="editTeacherMessage" class="mt-3"></div>
+          <div id="teacherUsageInfo" class="alert alert-info mt-3" style="display: none;">
+            <i class="bi bi-info-circle"></i> Этот преподаватель используется в расписании
+          </div>
+          <div id="teacherLoadInfo" class="alert alert-warning mt-3" style="display: none;">
+            <i class="bi bi-clock"></i> Нагрузка: <span id="teacherLoadHours">0</span> часов в неделю
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="button" class="btn btn-danger" onclick="deleteTeacher()" id="deleteTeacherBtn">Удалить</button>
+          <button type="button" class="btn btn-primary" onclick="updateTeacher()">Сохранить</button>
         </div>
       </div>
     </div>
@@ -565,11 +805,11 @@
                     </button>
                   </div>
                 </div>
-                
+
                 <div class="mb-2">
                   <small class="text-muted">ID: ${group.id}</small>
                 </div>
-                
+
                 <div class="d-grid">
                   <button class="btn btn-outline-success" onclick="manageGroupSubjects(${group.id})">
                     <i class="bi bi-gear"></i> Управление предметами и часами
@@ -844,24 +1084,24 @@
             </td>
             <td>${teacher ? teacher.name : 'Не назначен'}</td>
             <td>
-              <input type="number" 
-                     class="form-control form-control-sm hours-input" 
+              <input type="number"
+                     class="form-control form-control-sm hours-input"
                      value="${subject.hours_per_week || 0}"
                      min="0"
                      max="40"
                      onchange="updateSubjectHours(${subject.id}, this.value)">
             </td>
             <td>
-              <input type="number" 
-                     class="form-control form-control-sm" 
+              <input type="number"
+                     class="form-control form-control-sm"
                      value="${subject.total_hours_semester1 || 0}"
                      min="0"
                      style="width: 80px;"
                      onchange="updateSemesterHours(${subject.id}, 'semester1', this.value)">
             </td>
             <td>
-              <input type="number" 
-                     class="form-control form-control-sm" 
+              <input type="number"
+                     class="form-control form-control-sm"
                      value="${subject.total_hours_semester2 || 0}"
                      min="0"
                      style="width: 80px;"
@@ -999,7 +1239,6 @@
       }
 
       try {
-        // ИСПРАВЛЕНО: добавлен /delete/ в URL
         const response = await fetch(`/api/group/subject/delete/${subjectGroupId}`, {
           method: 'DELETE'
         });
@@ -1007,10 +1246,9 @@
         const result = await response.json();
 
         if (result.success) {
-          // Удаляем из локальных данных
-          currentGroupSubjects = currentGroupSubjects.filter(s => s.id !== subjectGroupId);
-          renderGroupSubjects();
-          updateTotalHoursBadge();
+          // Обновляем список предметов
+          const groupId = document.getElementById('currentGroupId').value;
+          await loadGroupSubjects(groupId);
         } else {
           alert('Ошибка удаления: ' + result.message);
         }
@@ -1184,6 +1422,575 @@
       }
     }
 
+    // ========== ФУНКЦИИ ДЛЯ УПРАВЛЕНИЯ ПРЕДМЕТАМИ ==========
+
+    // Показать модальное окно управления предметами
+    async function showManageSubjectsModal() {
+      const modal = new bootstrap.Modal(document.getElementById('subjectsManagementModal'));
+
+      // Загружаем список предметов
+      await loadSubjectsList();
+
+      modal.show();
+    }
+
+    // Загрузка списка предметов
+    async function loadSubjectsList() {
+      try {
+        const response = await fetch('/api/data/subjects/detailed');
+        if (!response.ok) {
+          throw new Error('Ошибка загрузки предметов');
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+          renderSubjectsList(data.subjects);
+        } else {
+          document.getElementById('subjectsListContainer').innerHTML = `
+            <div class="alert alert-danger">
+              <i class="bi bi-exclamation-triangle"></i> ${data.message}
+            </div>
+          `;
+        }
+      } catch (error) {
+        document.getElementById('subjectsListContainer').innerHTML = `
+          <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle"></i> Ошибка загрузки: ${error.message}
+          </div>
+        `;
+      }
+    }
+
+    // Отображение списка предметов
+    function renderSubjectsList(subjects) {
+      if (!subjects || subjects.length === 0) {
+        document.getElementById('subjectsListContainer').innerHTML = `
+          <div class="text-center p-4">
+            <i class="bi bi-book" style="font-size: 2rem; color: #6c757d;"></i>
+            <p class="mt-2 text-muted">Нет предметов</p>
+            <button class="btn btn-sm btn-success" onclick="showAddNewSubjectModal()">
+              <i class="bi bi-plus-circle"></i> Добавить первый предмет
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '<div class="table-responsive">';
+      html += `
+        <table class="table table-hover">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Название предмета</th>
+              <th>Используется</th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      subjects.forEach(subject => {
+        const usageBadge = subject.usage_count > 0 ?
+          `<span class="badge bg-warning">${subject.usage_count}</span>` :
+          `<span class="badge bg-secondary">0</span>`;
+
+        html += `
+          <tr>
+            <td>${subject.id}</td>
+            <td>
+              <strong>${subject.name}</strong>
+              ${subject.usage_count > 0 ?
+                `<br><small class="text-muted">
+                  <i class="bi bi-info-circle"></i>
+                  Группы: ${subject.details.group_subjects},
+                  Расписание: ${subject.details.schedule_entries}
+                </small>` : ''}
+            </td>
+            <td>${usageBadge}</td>
+            <td>
+              <button class="btn btn-sm btn-outline-primary" onclick="editSubject(${subject.id}, '${subject.name.replace(/'/g, "\\'")}')" title="Редактировать">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-danger" onclick="deleteSubjectPrompt(${subject.id}, '${subject.name.replace(/'/g, "\\'")}', ${subject.usage_count})" title="Удалить">
+                <i class="bi bi-trash"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+
+      html += `
+          </tbody>
+        </table>
+      </div>`;
+
+      document.getElementById('subjectsListContainer').innerHTML = html;
+    }
+
+    // Показать модальное окно добавления нового предмета
+    function showAddNewSubjectModal() {
+      document.getElementById('addNewSubjectForm').reset();
+      document.getElementById('addNewSubjectMessage').innerHTML = '';
+
+      const modal = new bootstrap.Modal(document.getElementById('addNewSubjectModal'));
+      modal.show();
+    }
+
+    // Добавить новый предмет
+    async function addNewSubject() {
+      const name = document.getElementById('newSubjectName').value.trim();
+
+      if (!name) {
+        showMessage('addNewSubjectMessage', 'Введите название предмета', 'warning');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/data/subjects/add', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ name: name })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showMessage('addNewSubjectMessage', 'Предмет успешно добавлен', 'success');
+
+          // Обновляем глобальный список предметов
+          allSubjects.push({ id: result.id, name: result.name });
+
+          // Закрываем модальное окно и обновляем список
+          setTimeout(() => {
+            bootstrap.Modal.getInstance(document.getElementById('addNewSubjectModal')).hide();
+            loadSubjectsList();
+            updateSubjectSelect(); // Обновляем выпадающий список
+          }, 1500);
+
+        } else {
+          showMessage('addNewSubjectMessage', result.message || 'Ошибка добавления предмета', 'danger');
+        }
+
+      } catch (error) {
+        showMessage('addNewSubjectMessage', `Ошибка сети: ${error.message}`, 'danger');
+      }
+    }
+
+    // Редактировать предмет
+    function editSubject(id, name) {
+      document.getElementById('editSubjectId').value = id;
+      document.getElementById('editSubjectName').value = name;
+      document.getElementById('editSubjectMessage').innerHTML = '';
+      document.getElementById('subjectUsageInfo').style.display = 'none';
+
+      // Проверяем использование предмета
+      fetch(`/api/data/subjects/detailed`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            const subject = data.subjects.find(s => s.id === id);
+            if (subject && subject.usage_count > 0) {
+              document.getElementById('subjectUsageInfo').style.display = 'block';
+            }
+          }
+        });
+
+      const modal = new bootstrap.Modal(document.getElementById('editSubjectModal'));
+      modal.show();
+    }
+
+    // Обновить предмет
+    async function updateSubject() {
+      const id = document.getElementById('editSubjectId').value;
+      const name = document.getElementById('editSubjectName').value.trim();
+
+      if (!name) {
+        showMessage('editSubjectMessage', 'Введите название предмета', 'warning');
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/data/subjects/${id}/update`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ name: name })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showMessage('editSubjectMessage', 'Предмет успешно обновлен', 'success');
+
+          // Обновляем глобальный список предметов
+          const subjectIndex = allSubjects.findIndex(s => s.id === parseInt(id));
+          if (subjectIndex !== -1) {
+            allSubjects[subjectIndex].name = result.name;
+          }
+
+          // Закрываем модальное окно и обновляем список
+          setTimeout(() => {
+            bootstrap.Modal.getInstance(document.getElementById('editSubjectModal')).hide();
+            loadSubjectsList();
+            updateSubjectSelect(); // Обновляем выпадающий список
+          }, 1500);
+
+        } else {
+          showMessage('editSubjectMessage', result.message || 'Ошибка обновления предмета', 'danger');
+        }
+
+      } catch (error) {
+        showMessage('editSubjectMessage', `Ошибка сети: ${error.message}`, 'danger');
+      }
+    }
+
+    // Запрос на удаление предмета
+    function deleteSubjectPrompt(id, name, usageCount) {
+      if (usageCount > 0) {
+        alert(`Нельзя удалить предмет "${name}", так как он используется в ${usageCount} местах.`);
+        return;
+      }
+
+      if (confirm(`Вы уверены, что хотите удалить предмет "${name}"?`)) {
+        deleteSubject(id);
+      }
+    }
+
+    // Удалить предмет
+    async function deleteSubject() {
+      const id = document.getElementById('editSubjectId').value;
+
+      try {
+        const response = await fetch(`/api/data/subjects/${id}/delete`, {
+          method: 'DELETE'
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showMessage('editSubjectMessage', 'Предмет успешно удален', 'success');
+
+          // Удаляем из глобального списка предметов
+          allSubjects = allSubjects.filter(s => s.id !== parseInt(id));
+
+          // Закрываем модальное окно и обновляем список
+          setTimeout(() => {
+            bootstrap.Modal.getInstance(document.getElementById('editSubjectModal')).hide();
+            loadSubjectsList();
+            updateSubjectSelect(); // Обновляем выпадающий список
+          }, 1500);
+
+        } else {
+          showMessage('editSubjectMessage', result.message || 'Ошибка удаления предмета', 'danger');
+        }
+
+      } catch (error) {
+        showMessage('editSubjectMessage', `Ошибка сети: ${error.message}`, 'danger');
+      }
+    }
+
+    // Показать модальное окно добавления предмета (из меню группы)
+    function showAddSubjectModal() {
+      showAddNewSubjectModal();
+    }
+
+    // ========== ФУНКЦИИ ДЛЯ УПРАВЛЕНИЯ ПРЕПОДАВАТЕЛЯМИ ==========
+
+    // Показать модальное окно управления преподавателями
+    async function showManageTeachersModal() {
+      const modal = new bootstrap.Modal(document.getElementById('teachersManagementModal'));
+
+      // Загружаем список преподавателей
+      await loadTeachersList();
+
+      modal.show();
+    }
+
+    // Загрузка списка преподавателей
+    async function loadTeachersList() {
+      try {
+        const response = await fetch('/api/data/teachers/detailed');
+        if (!response.ok) {
+          throw new Error('Ошибка загрузки преподавателей');
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+          renderTeachersList(data.teachers);
+        } else {
+          document.getElementById('teachersListContainer').innerHTML = `
+            <div class="alert alert-danger">
+              <i class="bi bi-exclamation-triangle"></i> ${data.message}
+            </div>
+          `;
+        }
+      } catch (error) {
+        document.getElementById('teachersListContainer').innerHTML = `
+          <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle"></i> Ошибка загрузки: ${error.message}
+          </div>
+        `;
+      }
+    }
+
+    // Отображение списка преподавателей
+    function renderTeachersList(teachers) {
+      if (!teachers || teachers.length === 0) {
+        document.getElementById('teachersListContainer').innerHTML = `
+          <div class="text-center p-4">
+            <i class="bi bi-person-badge" style="font-size: 2rem; color: #6c757d;"></i>
+            <p class="mt-2 text-muted">Нет преподавателей</p>
+            <button class="btn btn-sm btn-success" onclick="showAddNewTeacherModal()">
+              <i class="bi bi-plus-circle"></i> Добавить первого преподавателя
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '<div class="table-responsive">';
+      html += `
+        <table class="table table-hover">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Имя преподавателя</th>
+              <th>Нагрузка (ч/нед)</th>
+              <th>Используется</th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      teachers.forEach(teacher => {
+        const usageBadge = teacher.usage_count > 0 ?
+          `<span class="badge bg-warning">${teacher.usage_count}</span>` :
+          `<span class="badge bg-secondary">0</span>`;
+
+        const loadBadge = teacher.total_hours_per_week > 0 ?
+          `<span class="badge bg-info">${teacher.total_hours_per_week} ч</span>` :
+          `<span class="badge bg-secondary">0 ч</span>`;
+
+        html += `
+          <tr>
+            <td>${teacher.id}</td>
+            <td>
+              <strong>${teacher.name}</strong>
+              ${teacher.usage_count > 0 ?
+                `<br><small class="text-muted">
+                  <i class="bi bi-info-circle"></i>
+                  Группы: ${teacher.details.group_subjects},
+                  Расписание: ${teacher.details.schedule_entries}
+                </small>` : ''}
+            </td>
+            <td>${loadBadge}</td>
+            <td>${usageBadge}</td>
+            <td>
+              <button class="btn btn-sm btn-outline-primary" onclick="editTeacher(${teacher.id}, '${teacher.name.replace(/'/g, "\\'")}', ${teacher.total_hours_per_week})" title="Редактировать">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-danger" onclick="deleteTeacherPrompt(${teacher.id}, '${teacher.name.replace(/'/g, "\\'")}', ${teacher.usage_count})" title="Удалить">
+                <i class="bi bi-trash"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+
+      html += `
+          </tbody>
+        </table>
+      </div>`;
+
+      document.getElementById('teachersListContainer').innerHTML = html;
+    }
+
+    // Показать модальное окно добавления нового преподавателя
+    function showAddNewTeacherModal() {
+      document.getElementById('addNewTeacherForm').reset();
+      document.getElementById('addNewTeacherMessage').innerHTML = '';
+
+      const modal = new bootstrap.Modal(document.getElementById('addNewTeacherModal'));
+      modal.show();
+    }
+
+    // Добавить нового преподавателя
+    async function addNewTeacher() {
+      const name = document.getElementById('newTeacherName').value.trim();
+
+      if (!name) {
+        showMessage('addNewTeacherMessage', 'Введите имя преподавателя', 'warning');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/data/teachers/add', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ name: name })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showMessage('addNewTeacherMessage', 'Преподаватель успешно добавлен', 'success');
+
+          // Обновляем глобальный список преподавателей
+          allTeachers.push({ id: result.id, name: result.name });
+
+          // Закрываем модальное окно и обновляем список
+          setTimeout(() => {
+            bootstrap.Modal.getInstance(document.getElementById('addNewTeacherModal')).hide();
+            loadTeachersList();
+            updateTeacherSelect(); // Обновляем выпадающий список
+          }, 1500);
+
+        } else {
+          showMessage('addNewTeacherMessage', result.message || 'Ошибка добавления преподавателя', 'danger');
+        }
+
+      } catch (error) {
+        showMessage('addNewTeacherMessage', `Ошибка сети: ${error.message}`, 'danger');
+      }
+    }
+
+    // Редактировать преподавателя
+    function editTeacher(id, name, loadHours) {
+      document.getElementById('editTeacherId').value = id;
+      document.getElementById('editTeacherName').value = name;
+      document.getElementById('editTeacherMessage').innerHTML = '';
+      document.getElementById('teacherUsageInfo').style.display = 'none';
+      document.getElementById('teacherLoadInfo').style.display = 'none';
+
+      // Проверяем использование преподавателя
+      fetch(`/api/data/teachers/detailed`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            const teacher = data.teachers.find(t => t.id === id);
+            if (teacher) {
+              if (teacher.usage_count > 0) {
+                document.getElementById('teacherUsageInfo').style.display = 'block';
+              }
+              if (teacher.total_hours_per_week > 0) {
+                document.getElementById('teacherLoadInfo').style.display = 'block';
+                document.getElementById('teacherLoadHours').textContent = teacher.total_hours_per_week;
+              }
+            }
+          }
+        });
+
+      const modal = new bootstrap.Modal(document.getElementById('editTeacherModal'));
+      modal.show();
+    }
+
+    // Обновить преподавателя
+    async function updateTeacher() {
+      const id = document.getElementById('editTeacherId').value;
+      const name = document.getElementById('editTeacherName').value.trim();
+
+      if (!name) {
+        showMessage('editTeacherMessage', 'Введите имя преподавателя', 'warning');
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/data/teachers/${id}/update`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ name: name })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showMessage('editTeacherMessage', 'Преподаватель успешно обновлен', 'success');
+
+          // Обновляем глобальный список преподавателей
+          const teacherIndex = allTeachers.findIndex(t => t.id === parseInt(id));
+          if (teacherIndex !== -1) {
+            allTeachers[teacherIndex].name = result.name;
+          }
+
+          // Закрываем модальное окно и обновляем список
+          setTimeout(() => {
+            bootstrap.Modal.getInstance(document.getElementById('editTeacherModal')).hide();
+            loadTeachersList();
+            updateTeacherSelect(); // Обновляем выпадающий список
+          }, 1500);
+
+        } else {
+          showMessage('editTeacherMessage', result.message || 'Ошибка обновления преподавателя', 'danger');
+        }
+
+      } catch (error) {
+        showMessage('editTeacherMessage', `Ошибка сети: ${error.message}`, 'danger');
+      }
+    }
+
+    // Запрос на удаление преподавателя
+    function deleteTeacherPrompt(id, name, usageCount) {
+      if (usageCount > 0) {
+        alert(`Нельзя удалить преподавателя "${name}", так как он используется в ${usageCount} местах.`);
+        return;
+      }
+
+      if (confirm(`Вы уверены, что хотите удалить преподавателя "${name}"?`)) {
+        deleteTeacher(id);
+      }
+    }
+
+    // Удалить преподавателя
+    async function deleteTeacher() {
+      const id = document.getElementById('editTeacherId').value;
+
+      try {
+        const response = await fetch(`/api/data/teachers/${id}/delete`, {
+          method: 'DELETE'
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showMessage('editTeacherMessage', 'Преподаватель успешно удален', 'success');
+
+          // Удаляем из глобального списка преподавателей
+          allTeachers = allTeachers.filter(t => t.id !== parseInt(id));
+
+          // Закрываем модальное окно и обновляем список
+          setTimeout(() => {
+            bootstrap.Modal.getInstance(document.getElementById('editTeacherModal')).hide();
+            loadTeachersList();
+            updateTeacherSelect(); // Обновляем выпадающий список
+          }, 1500);
+
+        } else {
+          showMessage('editTeacherMessage', result.message || 'Ошибка удаления преподавателя', 'danger');
+        }
+
+      } catch (error) {
+        showMessage('editTeacherMessage', `Ошибка сети: ${error.message}`, 'danger');
+      }
+    }
+
+    // Показать модальное окно добавления преподавателя (из меню группы)
+    function showAddTeacherModal() {
+      showAddNewTeacherModal();
+    }
+
+    // ========== ФУНКЦИИ АВТОЗАПОЛНЕНИЯ ==========
+
     // Показать модальное окно автозаполнения
     function showAutofillModal() {
       document.getElementById('autofillForm').reset();
@@ -1339,7 +2146,7 @@
           document.getElementById('autofillResult').innerHTML = `
             <div class="alert alert-success">
               <h5><i class="bi bi-check-circle"></i> Автозаполнение успешно завершено!</h5>
-              <p><strong>Создано записей:</strong> ${result.created_entries || 0}</p>
+              <p><strong>Создано записей:</strong> ${result.entries_added || 0}</p>
               <p><strong>Расписание:</strong> ${fillType === 'both' ? 'Текущее и основное' : fillType === 'current' ? 'Только текущее' : 'Только основное'}</p>
               <p><strong>Неделя:</strong> ${week}</p>
               <p><strong>Семестр:</strong> ${semester}</p>
@@ -1388,7 +2195,6 @@
       modal.show();
 
       try {
-        // ИСПРАВЛЕНО: изменен URL с дефиса на подчеркивание
         const response = await fetch('/api/schedule/check_conflicts');
         const result = await response.json();
 
@@ -1477,22 +2283,6 @@
         }
       }, 5000);
     }
-
-    // Экспортируем функции для отладки
-    window.manageGroupSubjects = manageGroupSubjects;
-    window.managePractice = managePractice;
-    window.managePracticeForGroup = managePracticeForGroup;
-    window.deleteGroup = deleteGroup;
-    window.showAddGroupModal = showAddGroupModal;
-    window.addGroup = addGroup;
-    window.showAutofillModal = showAutofillModal;
-    window.startAutofill = startAutofill;
-    window.checkConflicts = checkConflicts;
-    window.removeGroupSubject = removeGroupSubject;
-    window.updateSubjectHours = updateSubjectHours;
-    window.updateSemesterHours = updateSemesterHours;
-    window.savePractice = savePractice;
-    window.deletePractice = deletePractice;
   </script>
 </body>
 
